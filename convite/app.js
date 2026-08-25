@@ -15,6 +15,7 @@ function preencherConteudo(){
   const e = EVENTO;
   document.title = `${e.noiva} & ${e.noivo} — ${fmtDataCurta(e.data)}`;
   $("#hero-nomes").innerHTML = `${esc(e.noiva)} <span class="amp">&#10084;</span> ${esc(e.noivo)}`;
+  $("#tb-mark").innerHTML = `${esc(e.noiva[0])}&nbsp;&#10084;&nbsp;${esc(e.noivo[0])}`;
   $("#hero-data").textContent = `${fmtDataCurta(e.data)} — ${e.local}, ${e.cidade}`;
   $("#recado-texto").textContent = e.recado;
   $("#recado-assinatura").textContent = `${e.noiva} & ${e.noivo}`;

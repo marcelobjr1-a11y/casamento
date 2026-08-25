@@ -4,8 +4,8 @@
    ============================================================ */
 
 const EVENTO = {
-  noiva:  "Ana",
-  noivo:  "João",
+  noiva:  "Karina",
+  noivo:  "Marcelo",
   data:   "2027-04-24",   // AAAA-MM-DD
   horaCerimonia: "18:00",
   local:  "Fazenda Vista Alegre",
@@ -29,8 +29,8 @@ const EVENTO = {
 
   /* chave Pix para quem preferir contribuir em dinheiro */
   pix: {
-    chave: "ana.e.joao@email.com",
-    nomeTitular: "Ana Marques Silva"
+    chave: "karina.e.marcelo@email.com",
+    nomeTitular: "Karina"
   },
 
   /* sugestões de contribuição — apenas informativas, sem reserva */

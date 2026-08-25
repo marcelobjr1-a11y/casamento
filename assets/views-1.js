@@ -720,7 +720,7 @@ VIEWS.rsvp = function(){
         <h3 class="display" style="font-size:19px">Link de confirmação</h3>
         <p class="t-sm t-muted mt-8">Envie este link para os convidados confirmarem presença sozinhos.</p>
         <div class="mt-16" style="padding:12px 14px;background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:10px;font-size:12.5px;word-break:break-all">
-          ateliedecasamento.com/rsvp/ana-e-joao
+          ateliedecasamento.com/rsvp/karina-e-marcelo
         </div>
         <button class="btn btn-block mt-12" data-copiar-link>${ico("copy")}Copiar link</button>
       </div>
@@ -755,7 +755,7 @@ POS_RENDER.rsvp = function(){
   sincronizarSiteAoAbrir();
   $("#view").addEventListener("click", e => {
     if(e.target.closest("[data-copiar-link]")){
-      const url = "ateliedecasamento.com/rsvp/ana-e-joao";
+      const url = "ateliedecasamento.com/rsvp/karina-e-marcelo";
       if(navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
       toast("Link copiado para a área de transferência.","ok"); return;
     }

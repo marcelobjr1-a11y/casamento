@@ -118,6 +118,7 @@ function ordemHora(h){
 
 function iniciais(nome){
   const p = String(nome||"").trim().split(/\s+/);
+  if(p.length === 1) return (p[0].slice(0,2) || "");
   return ((p[0]||"")[0] || "") + ((p[p.length-1]||"")[0] || "");
 }
 function pct(a,b){ return b > 0 ? Math.round(a/b*100) : 0; }

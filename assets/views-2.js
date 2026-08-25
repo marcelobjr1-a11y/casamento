@@ -1612,9 +1612,9 @@ VIEWS.config = function(){
             <div class="field"><label>Nome do noivo</label>
               <input class="input" name="nomeNoivo" value="${esc(d.casal.nomeNoivo)}"></div>
             <div class="field"><label>Como aparecem no sistema</label>
-              <input class="input" name="noiva" value="${esc(d.casal.noiva)}" placeholder="Ana"></div>
+              <input class="input" name="noiva" value="${esc(d.casal.noiva)}" placeholder="Karina"></div>
             <div class="field"><label>&nbsp;</label>
-              <input class="input" name="noivo" value="${esc(d.casal.noivo)}" placeholder="João"></div>
+              <input class="input" name="noivo" value="${esc(d.casal.noivo)}" placeholder="Marcelo"></div>
             <div class="field"><label>Data do casamento</label>
               <input class="input" name="data" type="date" value="${esc(d.casal.data)}"></div>
             <div class="field"><label>Horário da cerimônia</label>
@@ -1754,7 +1754,7 @@ POS_RENDER.config = function(){
   v.addEventListener("click", e => {
     if(e.target.closest("[data-exportar-tudo]")){
       const url = URL.createObjectURL(new Blob([JSON.stringify(App.data, null, 2)], { type:"application/json" }));
-      const a = document.createElement("a"); a.href = url; a.download = "casamento-ana-e-joao.json"; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = "casamento-karina-e-marcelo.json"; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast("Backup exportado.","ok"); return;
     }

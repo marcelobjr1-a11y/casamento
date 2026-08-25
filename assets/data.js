@@ -209,8 +209,8 @@ function gerarPagamentos(){
 
 /* ---------- Equipe ---------- */
 const EQUIPE = [
-  { id:"e1", nome:"Ana Marques",     papel:"Noiva",           perm:"Administrador", tel:"(11) 99812-4455", email:"ana@email.com",     cor:"v1" },
-  { id:"e2", nome:"João Ribeiro",    papel:"Noivo",           perm:"Administrador", tel:"(11) 99733-2211", email:"joao@email.com",    cor:"v4" },
+  { id:"e1", nome:"Karina",          papel:"Noiva",           perm:"Administrador", tel:"(11) 99812-4455", email:"karina@email.com",  cor:"v1" },
+  { id:"e2", nome:"Marcelo",         papel:"Noivo",           perm:"Administrador", tel:"(11) 99733-2211", email:"marcelo@email.com", cor:"v4" },
   { id:"e3", nome:"Camila Andrade",  papel:"Cerimonialista",  perm:"Cerimonial",    tel:"(11) 99333-7788", email:"camila@ateliecerimonia.com", cor:"v2" },
   { id:"e4", nome:"Lúcia Marques",   papel:"Mãe da noiva",    perm:"Família",       tel:"(11) 99655-1010", email:"lucia@email.com",   cor:"v3" },
   { id:"e5", nome:"Dona Sueli",      papel:"Mãe do noivo",    perm:"Família",       tel:"(11) 99544-2020", email:"sueli@email.com",   cor:"v5" },
@@ -349,7 +349,7 @@ const INSPIRACOES = [
   { id:"i1",  cat:"Decoração", titulo:"Mesa posta em tons champagne", nota:"Toalha de linho cru, velas altas e folhagem baixa. Sem arranjos que tampem a vista.", g:1, h:230 },
   { id:"i2",  cat:"Decoração", titulo:"Varal de lâmpadas na varanda", nota:"Luz quente, 3000K. Combinar com a Luz & Cena.", g:2, h:180 },
   { id:"i3",  cat:"Flores",    titulo:"Arranjo baixo com eucalipto",  nota:"Verde acinzentado + rosas brancas. Nada de cores fortes.", g:3, h:260 },
-  { id:"i4",  cat:"Buquê",     titulo:"Buquê cascata discreto",       nota:"Preferência da Ana. Fita de seda cor manteiga.", g:4, h:210 },
+  { id:"i4",  cat:"Buquê",     titulo:"Buquê cascata discreto",       nota:"Preferência da Karina. Fita de seda cor manteiga.", g:4, h:210 },
   { id:"i5",  cat:"Vestido",   titulo:"Decote V com renda francesa",  nota:"Referência principal para a Vera do Ateliê Lumière.", g:5, h:290 },
   { id:"i6",  cat:"Vestido",   titulo:"Cauda média com botões",       nota:"Botões forrados nas costas — pedir orçamento do ajuste.", g:6, h:240 },
   { id:"i7",  cat:"Terno",     titulo:"Linho areia com gravata seda", nota:"Combina com a paleta. Sem colete.", g:7, h:200 },
@@ -411,8 +411,8 @@ function dadosIniciais(){
   return {
     versao: 1,
     casal: {
-      noiva:"Ana", noivo:"João",
-      nomeNoiva:"Ana Marques", nomeNoivo:"João Ribeiro",
+      noiva:"Karina", noivo:"Marcelo",
+      nomeNoiva:"Karina", nomeNoivo:"Marcelo",
       data:"2027-04-24", hora:"18:00",
       local:"Fazenda Vista Alegre", cidade:"Itu, SP",
       orcamento:60000, convidadosPrevistos:220,

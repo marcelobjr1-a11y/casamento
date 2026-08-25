@@ -6,7 +6,7 @@ Funciona direto no navegador, sem instalar nada.
 ## Como abrir
 
 Dê dois cliques no arquivo `index.html`.
-Ele abre no navegador e o sistema já vem com o casamento de exemplo (Ana & João) preenchido.
+Ele abre no navegador e o sistema já vem com o casamento de exemplo (Karina & Marcelo) preenchido.
 
 ## O que tem dentro
 
