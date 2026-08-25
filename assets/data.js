@@ -415,7 +415,11 @@ function dadosIniciais(){
       local:"", cidade:"",
       orcamento:0, convidadosPrevistos:0,
       modoGrandeDia:false, fotoCasal:"assets/casal-sidebar.jpg",
-      supabaseUrl:"", supabaseKey:"", supabaseSenha:"", ultimaImportacao:""
+      supabaseUrl:"", supabaseKey:"", supabaseSenha:"", ultimaImportacao:"",
+      /* conteúdo do site dos convidados */
+      recado:"", mapaUrl:"", endereco:"",
+      dressCode:"", dressCores:[], dressObs:"",
+      pixChave:"", pixTitular:"", fotoCapa:"", sitePublicadoEm:""
     },
     convidados: [],
     mesas: [],

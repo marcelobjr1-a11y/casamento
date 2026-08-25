@@ -62,11 +62,22 @@ ou **RSVP** no Ateliê, as novas respostas do site são buscadas e adicionadas
 à sua lista sozinhas. Você também pode clicar em **Sincronizar agora**, em
 Configurações, a qualquer momento.
 
+Essa mesma conexão também é usada pela tela **Site dos convidados**, que
+você vai usar no próximo passo para editar e publicar o conteúdo do site.
+
 ## Passo 5 — Editar as informações do casamento
 
-Abra `dados.js` e altere o que quiser: nomes, data, endereço, roteiro do
-dia, dress code, chave Pix, mensagem de recado. Salve o arquivo — está
-pronto, não precisa rodar nada de novo.
+Você **não precisa mais editar `dados.js` na mão**. Abra o Ateliê →
+**Site dos convidados** e edite ali: recado, endereço, link do mapa,
+dress code, cores, chave Pix e a foto de capa. A data, horário e local
+do casamento continuam vindo de **Configurações**, e o roteiro do dia
+continua vindo da tela **Cronograma** — edite nesses lugares e eles
+aparecem automaticamente no site.
+
+Depois de editar, clique em **Publicar** no topo da tela — as mudanças
+vão direto para o site, sem precisar mexer no GitHub Desktop.
+
+`dados.js` agora só guarda a conexão com o Supabase (a mesma do Passo 3).
 
 Para editar a lista de presentes (adicionar, remover, liberar um item
 reservado por engano), use o `painel.html` com a senha que você criou.

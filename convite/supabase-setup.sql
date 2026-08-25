@@ -178,6 +178,39 @@ begin
   update presentes set reservado = false, reservado_por = null where id = p_id;
 end; $$;
 grant execute on function admin_liberar_presente(text, uuid) to anon;
+-- ============================================================
+-- 4) Conteúdo do site dos convidados — editado pelo Ateliê,
+--    lido publicamente pelo site (convite/index.html)
+-- ============================================================
+create table if not exists site_config (
+  id smallint primary key default 1,
+  dados jsonb not null default '{}'::jsonb,
+  atualizado_em timestamptz not null default now(),
+  constraint site_config_singleton check (id = 1)
+);
+
+alter table site_config enable row level security;
+revoke all on site_config from anon, authenticated;
+
+-- leitura pública (o site dos convidados usa isso, sem senha)
+create or replace function obter_site_config()
+returns jsonb
+language sql security definer as $$
+  select dados from site_config where id = 1;
+$$;
+grant execute on function obter_site_config() to anon;
+
+-- salvar/atualizar o conteúdo (só o Ateliê, com senha)
+create or replace function salvar_site_config(p_senha text, p_dados jsonb)
+returns void
+language plpgsql security definer as $$
+begin
+  perform checar_senha_painel(p_senha);
+  insert into site_config (id, dados, atualizado_em)
+  values (1, p_dados, now())
+  on conflict (id) do update set dados = excluded.dados, atualizado_em = now();
+end; $$;
+grant execute on function salvar_site_config(text, jsonb) to anon;
 
 -- ============================================================
 -- Pronto! Agora:

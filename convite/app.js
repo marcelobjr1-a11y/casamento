@@ -14,9 +14,21 @@ function fmtDataExt(s){ const d = parseData(s); if(!d) return ""; return `${DIAS
 function fmtDataCurta(s){ const d = parseData(s); if(!d) return ""; return `${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`; }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-/* ---------- preenche o conteúdo a partir de dados.js ---------- */
+let EVENTO = { ...EVENTO_PADRAO, dressCores:[...EVENTO_PADRAO.dressCores], cronograma:[...EVENTO_PADRAO.cronograma], pix:{...EVENTO_PADRAO.pix} };
+
+/* busca o conteúdo publicado pelo Ateliê; sem conexão, fica no texto de reserva */
+async function carregarConteudoDoSite(){
+  if(!supabaseConfigurado()) return;
+  try{
+    const dados = await chamarRPC("obter_site_config", {});
+    if(dados && typeof dados === "object") EVENTO = { ...EVENTO_PADRAO, ...dados };
+  }catch(err){ console.warn("Não foi possível carregar o conteúdo do site:", err.message); }
+}
+
+/* ---------- preenche o conteúdo a partir de EVENTO ---------- */
 function preencherConteudo(){
   const e = EVENTO;
+  $("#hero-foto").src = e.fotoCapa || "hero-foto.jpg";
   document.title = e.data ? `${e.noiva} & ${e.noivo} — ${fmtDataCurta(e.data)}` : `${e.noiva} & ${e.noivo}`;
   $("#hero-nomes").innerHTML = `${esc(e.noiva)} <span class="amp">&#10084;</span> ${esc(e.noivo)}`;
   $("#tb-mark").innerHTML = `${esc(e.noiva[0])}&nbsp;&#10084;&nbsp;${esc(e.noivo[0])}`;
@@ -235,13 +247,17 @@ function iniciarPix(){
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   preencherConteudo();
   atualizarContagem();
-  setInterval(atualizarContagem, 60000);
   iniciarTopbar();
   iniciarRSVP();
   iniciarPix();
   iniciarPresentes();
   carregarPresentes();
+
+  await carregarConteudoDoSite();
+  preencherConteudo();
+  atualizarContagem();
+  setInterval(atualizarContagem, 60000);
 });

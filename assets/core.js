@@ -35,6 +35,10 @@ function carregar(){
         if(d.casal && d.casal.supabaseUrl === undefined){
           d.casal.supabaseUrl = ""; d.casal.supabaseKey = ""; d.casal.supabaseSenha = ""; d.casal.ultimaImportacao = "";
         }
+        if(d.casal && d.casal.recado === undefined){
+          Object.assign(d.casal, { recado:"", mapaUrl:"", endereco:"", dressCode:"", dressCores:[], dressObs:"",
+            pixChave:"", pixTitular:"", fotoCapa:"", sitePublicadoEm:"" });
+        }
         if(!GRUPOS.some(g => g.id === "site")) GRUPOS.push({ id:"site", nome:"Confirmados pelo site", qtd:0 });
         return d;
       }
@@ -196,7 +200,9 @@ const ICONES = {
   chat:'<path d="M20.5 12a8 8 0 0 1-11.6 7.1L3.5 20.5l1.4-5.4A8 8 0 1 1 20.5 12z"/>',
   userPlus:'<path d="M15 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="8.5" cy="7" r="3.2"/><path d="M19 8v6M22 11h-6"/>',
   church:'<path d="M12 2.5v5M9.5 5h5"/><path d="M12 7.5 5 12v9h14v-9z"/><path d="M9.5 21v-4.5a2.5 2.5 0 0 1 5 0V21"/>',
-  moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>'
+  moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  upload2:'<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>'
 };
 function ico(nome, cls){
   const p = ICONES[nome] || ICONES.info;
@@ -222,6 +228,7 @@ const ROTAS = [
   { id:"documentos",   nome:"Documentos",   icone:"folder" },
   { id:"inspiracoes",  nome:"Inspirações",  icone:"heart" },
   { id:"equipe",       nome:"Equipe",       icone:"userPlus" },
+  { id:"siteconvite",  nome:"Site dos convidados", icone:"globe" },
   { id:"grandedia",    nome:"O grande dia", icone:"sparkle", especial:true },
   { id:"config",       nome:"Configurações",icone:"settings" }
 ];
@@ -558,6 +565,29 @@ async function chamarRPCSite(nome, corpo){
   }
   return dados;
 }
+/* redimensiona e comprime uma imagem no navegador, devolvendo um data URI JPEG leve */
+function arquivoParaFotoComprimida(arquivo, larguraMax){
+  return new Promise((resolve, reject) => {
+    if(!arquivo || !arquivo.type.startsWith("image/")){ reject(new Error("Escolha um arquivo de imagem.")); return; }
+    const leitor = new FileReader();
+    leitor.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    leitor.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Não foi possível abrir essa imagem."));
+      img.onload = () => {
+        const escala = Math.min(1, (larguraMax || 1400) / img.width);
+        const w = Math.round(img.width * escala), h = Math.round(img.height * escala);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      img.src = leitor.result;
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
 async function importarRespostasSite(manual){
   if(!siteConfigurado()) return { ok:false, motivo:"não configurado" };
   try{
@@ -611,13 +641,13 @@ function sidebarHTML(){
     </div>
     <nav class="nav">
       <div class="nav-group eyebrow">Casamento</div>
-      ${ROTAS.slice(0,11).map(r => `
+      ${ROTAS.slice(0,12).map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
           ${badges[r.id] ? `<span class="nav-badge">${badges[r.id]}</span>` : ""}
         </button>`).join("")}
       <div class="nav-group eyebrow">Dia do evento</div>
-      ${ROTAS.slice(11).map(r => `
+      ${ROTAS.slice(12).map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""} ${r.especial?"is-special":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
         </button>`).join("")}

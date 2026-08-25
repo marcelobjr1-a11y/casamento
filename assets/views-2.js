@@ -1429,6 +1429,133 @@ function abrirFormPessoa(id){
 /* =========================================================
    O GRANDE DIA
    ========================================================= */
+/* =========================================================
+   SITE DOS CONVIDADOS
+   ========================================================= */
+VIEWS.siteconvite = function(){
+  const d = App.data, c = d.casal;
+  const conectado = siteConfigurado();
+
+  return `
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Site dos convidados</h1>
+      <p class="page-sub">Edite aqui e clique em publicar — as mudanças aparecem no site que você envia para os convidados.</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="../convite/index.html" target="_blank">${ico("arrowRight")}Ver site</a>
+      <button class="btn btn-primary" id="publicar-site">${ico("globe")}Publicar</button>
+    </div>
+  </div>
+
+  ${!conectado ? `<div class="alert warn mb-20">${ico("alert")}
+    <div><div class="a-title">Conexão com o Supabase ainda não configurada</div>
+    <div class="a-desc">Você pode editar tudo aqui, mas para publicar é preciso conectar em <button class="link" data-rota="config">Configurações → Site dos convidados</button> primeiro.</div></div>
+  </div>` : `<div class="alert ok mb-20">${ico("checkCircle")}
+    <div><div class="a-title">Conectado</div>
+    <div class="a-desc">${c.sitePublicadoEm ? `Última publicação: ${fmtData(c.sitePublicadoEm.slice(0,10), true)} às ${new Date(c.sitePublicadoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}.` : "Ainda não publicado — edite os campos abaixo e clique em Publicar."}</div></div>
+  </div>`}
+
+  <div class="dash-main">
+    <div class="stack">
+      <div class="card">
+        <div class="card-head"><h3>Recado aos convidados</h3></div>
+        <div class="card-body">
+          <div class="field"><textarea class="textarea" id="sc-recado" rows="4" placeholder="Depois de tanto sonhar juntos, chegou a hora de celebrar...">${esc(c.recado)}</textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Local do casamento</h3>
+          <span class="t-xs t-muted">Data, horário e nome do local ficam em <button class="link" data-rota="config">Configurações</button></span></div>
+        <div class="card-body">
+          <div class="grid g-2" style="gap:12px">
+            ${linhaInfo("Data", c.data ? fmtData(c.data, true) : "Não definida")}
+            ${linhaInfo("Local", c.local || "Não definido")}
+          </div>
+          <div class="form-grid mt-16">
+            <div class="field full"><label>Endereço completo</label>
+              <input class="input" id="sc-endereco" value="${esc(c.endereco)}" placeholder="Rua, número — Bairro, Cidade/UF"></div>
+            <div class="field full"><label>Link do Google Maps</label>
+              <input class="input" id="sc-mapa" value="${esc(c.mapaUrl)}" placeholder="https://maps.google.com/?q=..."></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Roteiro do dia</h3>
+          <button class="link" data-rota="cronograma">Editar no Cronograma ${ico("chevronRight")}</button></div>
+        <div class="card-body">
+          <p class="t-sm t-ink3">${d.cronograma.length ? `${d.cronograma.length} evento(s) cadastrados — eles aparecem automaticamente no site quando você publicar.` : "Nenhum evento cadastrado ainda. Adicione o roteiro do dia na tela Cronograma."}</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Dress code</h3></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="field full"><label>Como chamar o dress code</label>
+              <input class="input" id="sc-dresscode" value="${esc(c.dressCode)}" placeholder="Ex.: Traje esporte fino"></div>
+            <div class="field full"><label>Observações</label>
+              <textarea class="textarea" id="sc-dressobs" rows="2" placeholder="Ex.: evite branco, a cerimônia é ao ar livre...">${esc(c.dressObs)}</textarea></div>
+          </div>
+          <div class="field mt-12"><label>Paleta de cores sugeridas</label>
+            <div class="chips" id="sc-cores">
+              ${c.dressCores.map((cor,i) => `
+                <span class="chip active" data-cor-idx="${i}" style="cursor:pointer;background:${esc(cor)};border-color:${esc(cor)};color:#fff">
+                  ${esc(cor)} ${ico("x")}
+                </span>`).join("")}
+            </div>
+            <div class="center gap-8 mt-12">
+              <input type="color" id="sc-nova-cor" value="#A8874E" style="width:44px;height:38px;border-radius:9px;border:1px solid var(--line);padding:2px;background:var(--surface)">
+              <button class="btn btn-sm" id="sc-add-cor">${ico("plus")}Adicionar cor</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Presente via Pix</h3></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="field"><label>Chave Pix</label>
+              <input class="input" id="sc-pixchave" value="${esc(c.pixChave)}" placeholder="email@exemplo.com, CPF ou telefone"></div>
+            <div class="field"><label>Nome do titular</label>
+              <input class="input" id="sc-pixtitular" value="${esc(c.pixTitular)}" placeholder="Nome de quem recebe"></div>
+          </div>
+          <p class="t-xs t-muted mt-8">Deixe a chave em branco para ocultar essa seção no site.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="card-head"><h3>Foto de capa</h3></div>
+        <div class="card-body">
+          <div id="sc-foto-preview" style="border-radius:14px;overflow:hidden;border:1px solid var(--line-2);aspect-ratio:4/5;background:var(--surface-2) center/cover ${c.fotoCapa ? `url('${c.fotoCapa}')` : ""};display:flex;align-items:center;justify-content:center">
+            ${!c.fotoCapa ? `<span class="t-xs t-muted">Sem foto ainda</span>` : ""}
+          </div>
+          <div class="center gap-8 mt-12">
+            <label class="btn btn-sm" style="cursor:pointer">${ico("upload2")}Escolher foto
+              <input type="file" id="sc-foto-input" accept="image/*" style="display:none">
+            </label>
+            ${c.fotoCapa ? `<button class="btn btn-sm btn-danger" id="sc-foto-remover">${ico("trash")}Remover</button>` : ""}
+          </div>
+          <p class="t-xs t-muted mt-8">A foto é redimensionada automaticamente antes de salvar. Essa é a foto grande do topo do site.</p>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="alert info" style="border:0;padding:0;background:transparent">
+          ${ico("info")}
+          <div><div class="a-title">Como funciona</div>
+          <div class="a-desc">Suas alterações ficam salvas aqui no Ateliê imediatamente. Para os convidados verem, clique em <strong>Publicar</strong> no topo da página.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
 VIEWS.grandedia = function(){
   const d = App.data, m = metricas();
   const ativo = d.casal.modoGrandeDia;
@@ -1585,6 +1712,75 @@ VIEWS.grandedia = function(){
       </div>
     </div>
   </div>`;
+};
+
+POS_RENDER.siteconvite = function(){
+  const v = $("#view");
+  const c = App.data.casal;
+
+  const camposTexto = [
+    ["sc-recado","recado"], ["sc-endereco","endereco"], ["sc-mapa","mapaUrl"],
+    ["sc-dresscode","dressCode"], ["sc-dressobs","dressObs"],
+    ["sc-pixchave","pixChave"], ["sc-pixtitular","pixTitular"]
+  ];
+  camposTexto.forEach(([id, campo]) => {
+    const el = $("#"+id);
+    if(el) el.addEventListener("input", () => { c[campo] = el.value; salvar(); });
+  });
+
+  const btnAddCor = $("#sc-add-cor");
+  if(btnAddCor) btnAddCor.onclick = () => {
+    const cor = $("#sc-nova-cor").value;
+    if(!c.dressCores.includes(cor)) c.dressCores.push(cor);
+    salvar(); render();
+  };
+
+  const inputFoto = $("#sc-foto-input");
+  if(inputFoto) inputFoto.addEventListener("change", async () => {
+    const arq = inputFoto.files[0]; if(!arq) return;
+    try{
+      c.fotoCapa = await arquivoParaFotoComprimida(arq, 1600);
+      salvar(); render();
+      toast("Foto atualizada — clique em Publicar para os convidados verem.","ok");
+    }catch(err){ toast(err.message,"err"); }
+  });
+
+  v.addEventListener("click", async e => {
+    const corChip = e.target.closest("[data-cor-idx]");
+    if(corChip){
+      c.dressCores.splice(Number(corChip.dataset.corIdx), 1);
+      salvar(); render(); return;
+    }
+    if(e.target.closest("#sc-foto-remover")){
+      c.fotoCapa = ""; salvar(); render(); return;
+    }
+    const btnPub = e.target.closest("#publicar-site");
+    if(btnPub){
+      if(!siteConfigurado()){ toast("Conecte o Supabase em Configurações primeiro.","err"); return; }
+      btnPub.disabled = true;
+      const original = btnPub.innerHTML;
+      btnPub.innerHTML = `<span class="spinner"></span> Publicando…`;
+      try{
+        const config = {
+          noiva: c.noiva, noivo: c.noivo,
+          data: c.data, horaCerimonia: c.hora, local: c.local, endereco: c.endereco,
+          cidade: c.cidade, mapaUrl: c.mapaUrl, recado: c.recado,
+          dressCode: c.dressCode, dressCores: c.dressCores, dressObs: c.dressObs,
+          cronograma: App.data.cronograma.slice().sort((a,b) => ordemHora(a.hora) - ordemHora(b.hora))
+            .map(x => ({ hora:x.hora, titulo:x.titulo, sub:x.local })),
+          pix: { chave: c.pixChave, nomeTitular: c.pixTitular },
+          fotoCapa: c.fotoCapa
+        };
+        await chamarRPCSite("salvar_site_config", { p_senha: c.supabaseSenha, p_dados: config });
+        c.sitePublicadoEm = new Date().toISOString();
+        salvar(); render();
+        toast("Site publicado! As mudanças já estão no ar.","ok");
+      }catch(err){
+        toast("Não foi possível publicar: " + err.message,"err");
+        btnPub.disabled = false; btnPub.innerHTML = original;
+      }
+    }
+  });
 };
 
 POS_RENDER.grandedia = function(){

@@ -23,6 +23,7 @@ Ele abre no navegador e o sistema já vem com o casamento de exemplo (Karina & M
 | **Documentos** | Contratos, comprovantes e orçamentos organizados por categoria |
 | **Inspirações** | Painel de referências. Dá para colar o link de uma imagem em cada ideia |
 | **Equipe** | Quem participa da organização e o nível de acesso de cada um |
+| **Site dos convidados** | Edite o recado, endereço, dress code, Pix e a foto de capa do site que você envia aos convidados — clique em Publicar e as mudanças vão direto para lá |
 | **O grande dia** | Modo simplificado para usar no dia do casamento (ative no botão dourado) |
 | **Configurações** | Nomes, data, local, orçamento e backup dos dados |
 
@@ -69,4 +70,7 @@ casamento/
 
 Para mudar o casal, a data ou o orçamento **do Ateliê**, use a tela
 **Configurações** — não precisa mexer no código. Para mudar as informações
-**do site dos convidados**, edite `convite/dados.js`.
+**do site dos convidados** (recado, endereço, dress code, Pix, foto de
+capa), use a tela **Site dos convidados** dentro do próprio Ateliê e
+clique em **Publicar** — não precisa mais editar arquivos nem usar o
+GitHub Desktop para isso (só para atualizar o código do sistema em si).
