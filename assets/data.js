@@ -404,31 +404,30 @@ const NOTIFICACOES = [
   { id:"n5", tipo:"info",  titulo:"16 confirmados ainda sem mesa",       desc:"Finalize o mapa de mesas.",                  quando:"há 4 dias",   rota:"mesas",      lida:true }
 ];
 
-/* ---------- Estado inicial ---------- */
+/* ---------- Estado inicial: em branco, pronto para o casal preencher ---------- */
 function dadosIniciais(){
-  const convidados = gerarConvidados();
-  const mesas = gerarMesas(convidados);
   return {
     versao: 1,
     casal: {
       noiva:"Karina", noivo:"Marcelo",
       nomeNoiva:"Karina", nomeNoivo:"Marcelo",
-      data:"2027-04-24", hora:"18:00",
-      local:"Fazenda Vista Alegre", cidade:"Itu, SP",
-      orcamento:60000, convidadosPrevistos:220,
+      data:"", hora:"",
+      local:"", cidade:"",
+      orcamento:0, convidadosPrevistos:0,
       modoGrandeDia:false, fotoCasal:"assets/casal-sidebar.jpg",
       supabaseUrl:"", supabaseKey:"", supabaseSenha:"", ultimaImportacao:""
     },
-    convidados, mesas,
-    fornecedores: FORNECEDORES.map(f => ({ ...f })),
-    orcamentoCats: ORCAMENTO_CATS.map(c => ({ ...c })),
-    pagamentos: gerarPagamentos(),
-    tarefas: gerarTarefas(),
-    cronograma: CRONOGRAMA.map(c => ({ ...c })),
-    documentos: DOCUMENTOS.map(d => ({ ...d })),
-    inspiracoes: INSPIRACOES.map(i => ({ ...i })),
-    marcos: MARCOS.map(m => ({ ...m })),
-    equipe: EQUIPE.map(e => ({ ...e })),
-    notificacoes: NOTIFICACOES.map(n => ({ ...n }))
+    convidados: [],
+    mesas: [],
+    fornecedores: [],
+    orcamentoCats: ORCAMENTO_CATS.map(c => ({ cat:c.cat, orcado:0 })),
+    pagamentos: [],
+    tarefas: [],
+    cronograma: [],
+    documentos: [],
+    inspiracoes: [],
+    marcos: MARCOS.map(m => ({ ...m, ok:false })),
+    equipe: EQUIPE.filter(e => e.id === "e1" || e.id === "e2").map(e => ({ ...e, tel:"", email:"" })),
+    notificacoes: []
   };
 }

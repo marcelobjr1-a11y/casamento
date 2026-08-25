@@ -274,8 +274,9 @@ function metricas(){
     diasRestantes: diasAte(d.casal.data)
   };
 }
-/* texto da contagem regressiva, tratando o dia do casamento e datas passadas */
+/* texto da contagem regressiva, tratando data indefinida, o dia do casamento e datas passadas */
 function contagem(){
+  if(!App.data.casal.data) return { semData:true, num:null, rotulo:"", frase:"Defina a data do casamento" };
   const n = diasAte(App.data.casal.data);
   if(n > 1)  return { num:n, rotulo:"dias", frase:`Faltam <b>${n}</b> dias para o grande dia` };
   if(n === 1) return { num:1, rotulo:"dia",  frase:"Falta <b>1</b> dia para o grande dia" };
@@ -625,11 +626,16 @@ function sidebarHTML(){
       <div class="countdown-card ${d.casal.fotoCasal?"has-photo":""}">
         ${d.casal.fotoCasal ? `<img class="cc-photo" src="${esc(d.casal.fotoCasal)}" alt="${esc(d.casal.nomeNoiva)} e ${esc(d.casal.nomeNoivo)}">` : ""}
         <div class="cc-body">
-          <div class="cc-label">${c.num === 0 ? "O grande dia" : (c.passado ? "Faz" : "Faltam")}</div>
-          <div class="cc-num">${c.num === 0 ? "&#10084;" : c.num}</div>
-          <div class="cc-days">${c.passado ? "dias" : c.rotulo}</div>
-          <div class="cc-date">${fmtData(d.casal.data, true)}</div>
-          <div class="cc-heart">&#10084;</div>
+          ${c.semData ? `
+            <div class="cc-label">Contagem regressiva</div>
+            <button class="cc-set-date" data-rota="config">${ico("calendar")}Definir a data do casamento</button>
+          ` : `
+            <div class="cc-label">${c.num === 0 ? "O grande dia" : (c.passado ? "Faz" : "Faltam")}</div>
+            <div class="cc-num">${c.num === 0 ? "&#10084;" : c.num}</div>
+            <div class="cc-days">${c.passado ? "dias" : c.rotulo}</div>
+            <div class="cc-date">${fmtData(d.casal.data, true)}</div>
+            <div class="cc-heart">&#10084;</div>
+          `}
         </div>
       </div>
     </div>

@@ -887,7 +887,9 @@ VIEWS.cronograma = function(){
   <div class="page-head">
     <div>
       <h1 class="page-title">Cronograma do dia</h1>
-      <p class="page-sub">${fmtDataExt(d.casal.data)} · ${esc(d.casal.local)}, ${esc(d.casal.cidade)}.</p>
+      <p class="page-sub">${d.casal.data
+        ? [fmtDataExt(d.casal.data), [d.casal.local, d.casal.cidade].filter(Boolean).join(", ")].filter(Boolean).join(" · ") + "."
+        : "Defina a data e o local em Configurações para montar o roteiro."}</p>
     </div>
     <div class="page-actions">
       <button class="btn" onclick="window.print()">${ico("printer")}Imprimir</button>
@@ -898,7 +900,7 @@ VIEWS.cronograma = function(){
   <div class="grid g-4 mb-20">
     ${miniStat("Eventos", ev.length, "no roteiro do dia", "clock")}
     ${miniStat("Início", ev.length?ev[0].hora:"—", ev.length?esc(ev[0].titulo):"—", "sparkle","g4")}
-    ${miniStat("Cerimônia", (ev.find(e => /cerim/i.test(e.titulo))||{}).hora || d.casal.hora, "entrada da noiva", "church","g2")}
+    ${miniStat("Cerimônia", (ev.find(e => /cerim/i.test(e.titulo))||{}).hora || d.casal.hora || "—", "entrada da noiva", "church","g2")}
     ${miniStat("Encerramento", ev.length?ev[ev.length-1].hora:"—", "fim da festa", "moon","g3")}
   </div>
 
@@ -908,7 +910,8 @@ VIEWS.cronograma = function(){
         <span class="t-xs t-muted">Clique em um evento para editar</span></div>
       <div class="card-body">
         <div class="tl">
-          ${ev.map(e => `
+          ${!ev.length ? vazio("calendar","Nenhum evento no roteiro ainda","Adicione os horários do seu grande dia — cerimônia, recepção, jantar, festa.",
+            `<button class="btn btn-primary" data-novo-evento>${ico("plus")}Novo evento</button>`) : ev.map(e => `
             <div class="tl-item" data-evento="${e.id}" style="cursor:pointer">
               <div class="tl-time">${esc(e.hora)}</div>
               <div class="tl-rail"><span class="tl-dot"></span></div>
@@ -933,12 +936,14 @@ VIEWS.cronograma = function(){
     <div class="stack">
       <div class="card card-pad">
         <div class="eyebrow">Contagem regressiva</div>
-        <div class="num" style="font-size:42px;line-height:1.1;margin-top:8px">${metricas().diasRestantes}</div>
-        <div class="t-sm t-muted">dias para o grande dia</div>
+        ${d.casal.data
+          ? `<div class="num" style="font-size:42px;line-height:1.1;margin-top:8px">${metricas().diasRestantes}</div>
+             <div class="t-sm t-muted">dias para o grande dia</div>`
+          : `<div class="t-sm t-ink3 mt-8" style="line-height:1.6">Defina a data em <button class="link" data-rota="config">Configurações</button> para ver a contagem.</div>`}
         <div class="sep"></div>
-        ${linhaInfo("Data", fmtData(d.casal.data, true))}
-        <div class="mt-12">${linhaInfo("Cerimônia", d.casal.hora)}</div>
-        <div class="mt-12">${linhaInfo("Local", d.casal.local + " · " + d.casal.cidade)}</div>
+        ${linhaInfo("Data", d.casal.data ? fmtData(d.casal.data, true) : "—")}
+        <div class="mt-12">${linhaInfo("Cerimônia", d.casal.hora || "—")}</div>
+        <div class="mt-12">${linhaInfo("Local", [d.casal.local, d.casal.cidade].filter(Boolean).join(" · ") || "—")}</div>
       </div>
 
       <div class="card">
@@ -1446,7 +1451,7 @@ VIEWS.grandedia = function(){
     </div>
     <div class="card card-pad" style="text-align:center;padding:56px 24px">
       <div class="empty-ico" style="width:72px;height:72px">${ico("sparkle")}</div>
-      <h2 class="display" style="font-size:28px;margin-top:16px">Faltam ${m.diasRestantes} dias</h2>
+      <h2 class="display" style="font-size:28px;margin-top:16px">${d.casal.data ? `Faltam ${m.diasRestantes} dias` : "Defina a data do casamento"}</h2>
       <p class="t-ink3 mt-8" style="max-width:460px;margin:8px auto 0;line-height:1.65">
         Neste modo, o sistema mostra apenas o essencial: o próximo compromisso, quem chega agora,
         os contatos de emergência e os alertas críticos. Nada mais.
@@ -1469,6 +1474,25 @@ VIEWS.grandedia = function(){
         </div>`).join("")}
     </div>`;
   }
+
+  if(!ev.length){
+    return `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Hoje é o grande dia.</h1>
+        <p class="page-sub">${d.casal.data ? fmtDataExt(d.casal.data) : ""} ${esc(d.casal.local||"")}</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn" data-desativar-gd>Sair do modo grande dia</button>
+      </div>
+    </div>
+    <div class="card card-pad" style="text-align:center;padding:56px 24px">
+      ${vazio("calendar","O roteiro do dia ainda está vazio","Cadastre os horários da cerimônia, recepção e festa no Cronograma para ver tudo aqui.",
+        `<button class="btn btn-primary" data-rota="cronograma">${ico("calendar")}Ir para o Cronograma</button>`)}
+    </div>`;
+  }
+
+  const pagtosHoje = d.pagamentos.filter(p => p.status !== "pago" && p.venc === d.casal.data);
 
   return `
   <div class="page-head">
@@ -1527,16 +1551,9 @@ VIEWS.grandedia = function(){
       <div class="card">
         <div class="card-head"><h3>Alertas críticos</h3></div>
         <div class="card-body" style="padding-top:10px">
-          <div class="alert danger mb-12">${ico("alert")}
-            <div><div class="a-title">Decoração ainda não confirmou chegada</div>
-            <div class="a-desc">Flores &amp; Cia — previsto para 15:00.</div></div>
-            <span class="a-act"><button class="btn btn-sm">${ico("phone")}Ligar</button></span></div>
-          <div class="alert warn mb-12">${ico("clock")}
-            <div><div class="a-title">Fotógrafo chega em 30 minutos</div>
-            <div class="a-desc">Marina Ferraz — Estúdio Luz.</div></div></div>
-          <div class="alert ok">${ico("checkCircle")}
-            <div><div class="a-title">Buffet no local desde 13:00</div>
-            <div class="a-desc">Equipe completa, montagem em andamento.</div></div></div>
+          <div class="alert info">${ico("info")}
+            <div><div class="a-title">Nenhum alerta no momento</div>
+            <div class="a-desc">Avisos de atraso ou pendência de fornecedores aparecem aqui no dia.</div></div></div>
         </div>
       </div>
     </div>
@@ -1563,7 +1580,7 @@ VIEWS.grandedia = function(){
           ${linhaInfo("Convidados", String(m.pessoas))}
           ${linhaInfo("Mesas", String(d.mesas.length))}
           ${linhaInfo("Fornecedores", String(m.contratados.length))}
-          ${linhaInfo("A pagar hoje", "R$ 0")}
+          ${linhaInfo("A pagar hoje", money(pagtosHoje.reduce((a,p)=>a+p.valor,0)))}
         </div>
       </div>
     </div>
@@ -1688,10 +1705,10 @@ VIEWS.config = function(){
           <div class="brand-mark" style="font-size:42px">${esc(d.casal.noiva[0])}<span class="amp">&#10084;</span>${esc(d.casal.noivo[0])}</div>
           <div class="brand-sub mt-8">${esc(d.casal.nomeNoiva)} &amp; ${esc(d.casal.nomeNoivo)}</div>
           <div class="brand-rule" style="margin:14px auto"></div>
-          <div class="t-sm t-ink3">${fmtDataExt(d.casal.data)}</div>
-          <div class="t-sm t-muted">${esc(d.casal.local)} · ${esc(d.casal.cidade)}</div>
-          <div class="num mt-16" style="font-size:32px">${metricas().diasRestantes}</div>
-          <div class="t-xs t-muted" style="letter-spacing:.14em;text-transform:uppercase">dias restantes</div>
+          <div class="t-sm t-ink3">${d.casal.data ? fmtDataExt(d.casal.data) : "Data ainda não definida"}</div>
+          <div class="t-sm t-muted">${[d.casal.local, d.casal.cidade].filter(Boolean).join(" · ")}</div>
+          ${d.casal.data ? `<div class="num mt-16" style="font-size:32px">${metricas().diasRestantes}</div>
+          <div class="t-xs t-muted" style="letter-spacing:.14em;text-transform:uppercase">dias restantes</div>` : ""}
         </div>
       </div>
 

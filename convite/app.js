@@ -5,52 +5,77 @@
 const MESES_L = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 const DIAS_L = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
 
-function parseData(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
-function fmtDataExt(s){ const d = parseData(s); return `${DIAS_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`; }
-function fmtDataCurta(s){ const d = parseData(s); return `${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`; }
+function parseData(s){
+  if(!s) return null;
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtDataExt(s){ const d = parseData(s); if(!d) return ""; return `${DIAS_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`; }
+function fmtDataCurta(s){ const d = parseData(s); if(!d) return ""; return `${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`; }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 /* ---------- preenche o conteúdo a partir de dados.js ---------- */
 function preencherConteudo(){
   const e = EVENTO;
-  document.title = `${e.noiva} & ${e.noivo} — ${fmtDataCurta(e.data)}`;
+  document.title = e.data ? `${e.noiva} & ${e.noivo} — ${fmtDataCurta(e.data)}` : `${e.noiva} & ${e.noivo}`;
   $("#hero-nomes").innerHTML = `${esc(e.noiva)} <span class="amp">&#10084;</span> ${esc(e.noivo)}`;
   $("#tb-mark").innerHTML = `${esc(e.noiva[0])}&nbsp;&#10084;&nbsp;${esc(e.noivo[0])}`;
-  $("#hero-data").textContent = `${fmtDataCurta(e.data)} — ${e.local}, ${e.cidade}`;
-  $("#recado-texto").textContent = e.recado;
-  $("#recado-assinatura").textContent = `${e.noiva} & ${e.noivo}`;
+  $("#hero-data").textContent = e.data
+    ? `${fmtDataCurta(e.data)}${e.local ? ` — ${e.local}, ${e.cidade}` : ""}`
+    : "Data e local em breve";
+  if(e.recado){
+    $("#recado-texto").textContent = e.recado;
+    $("#recado-assinatura").textContent = `${e.noiva} & ${e.noivo}`;
+  } else {
+    $("#sec-recado").style.display = "none";
+  }
 
-  $("#d-data").textContent = fmtDataCurta(e.data).replace(/^\w/, c => c.toUpperCase());
-  $("#d-data-sub").textContent = fmtDataExt(e.data).replace(/^\w/, c => c.toUpperCase());
-  $("#d-hora").textContent = `Cerimônia às ${e.horaCerimonia}`;
-  $("#d-local").textContent = e.local;
-  $("#d-endereco").textContent = e.endereco;
-  $("#d-mapa").href = e.mapaUrl;
+  $("#d-data").textContent = e.data ? fmtDataCurta(e.data).replace(/^\w/, c => c.toUpperCase()) : "A definir";
+  $("#d-data-sub").textContent = e.data ? fmtDataExt(e.data).replace(/^\w/, c => c.toUpperCase()) : "Em breve avisamos a data certinha";
+  $("#d-hora").textContent = e.horaCerimonia ? `Cerimônia às ${e.horaCerimonia}` : "Horário a definir";
+  $("#d-local").textContent = e.local || "Local a definir";
+  $("#d-endereco").textContent = e.endereco || "Em breve avisamos o endereço completo";
+  if(e.mapaUrl){ $("#d-mapa").href = e.mapaUrl; } else { $("#d-mapa").style.display = "none"; }
 
-  $("#rt-line").innerHTML = e.cronograma.map(it => `
-    <div class="rt-item">
-      <div class="rt-time">${esc(it.hora)}</div>
-      <div class="rt-rail"><span class="rt-dot"></span></div>
-      <div class="rt-body">
-        <div class="rt-title">${esc(it.titulo)}</div>
-        <div class="rt-sub">${esc(it.sub)}</div>
-      </div>
-    </div>`).join("");
+  if(e.cronograma.length){
+    $("#rt-line").innerHTML = e.cronograma.map(it => `
+      <div class="rt-item">
+        <div class="rt-time">${esc(it.hora)}</div>
+        <div class="rt-rail"><span class="rt-dot"></span></div>
+        <div class="rt-body">
+          <div class="rt-title">${esc(it.titulo)}</div>
+          <div class="rt-sub">${esc(it.sub)}</div>
+        </div>
+      </div>`).join("");
+  } else {
+    $("#rt-line").innerHTML = `<p style="text-align:center;color:var(--muted);font-size:13px">O roteiro do dia será divulgado em breve.</p>`;
+  }
 
-  $("#dress-titulo").textContent = e.dressCode;
-  $("#dress-obs").textContent = e.dressObs;
-  $("#dress-swatches").innerHTML = e.dressCores.map(c => `<span class="sw" style="background:${c}"></span>`).join("");
+  if(e.dressCode || e.dressObs || e.dressCores.length){
+    $("#dress-titulo").textContent = e.dressCode || "Dress code";
+    $("#dress-obs").textContent = e.dressObs;
+    $("#dress-swatches").innerHTML = e.dressCores.map(c => `<span class="sw" style="background:${c}"></span>`).join("");
+  } else {
+    $("#sec-dress").style.display = "none";
+  }
 
-  $("#pix-chave").textContent = e.pix.chave;
-  $("#pix-titular").textContent = `Titular: ${e.pix.nomeTitular}`;
+  if(e.pix && e.pix.chave){
+    $("#pix-chave").textContent = e.pix.chave;
+    $("#pix-titular").textContent = e.pix.nomeTitular ? `Titular: ${e.pix.nomeTitular}` : "";
+  } else {
+    $("#pix-card").style.display = "none";
+  }
 
   $("#foot-mark").innerHTML = `${esc(e.noiva[0])} &#10084; ${esc(e.noivo[0])}`;
-  $("#foot-data").textContent = `${fmtDataCurta(e.data)} · ${e.local}, ${e.cidade}`;
+  $("#foot-data").textContent = e.data
+    ? `${fmtDataCurta(e.data)}${e.local ? ` · ${e.local}, ${e.cidade}` : ""}`
+    : `${e.noiva} & ${e.noivo}`;
 }
 
 /* ---------- contagem regressiva ---------- */
 function atualizarContagem(){
   const alvo = parseData(EVENTO.data);
+  if(!alvo){ $("#hero-count").innerHTML = ""; return; }
   const agora = new Date();
   let diff = Math.max(0, alvo - agora);
   const dias = Math.floor(diff / 86400000);

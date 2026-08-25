@@ -23,12 +23,7 @@ VIEWS.dashboard = function(){
   const proximosPagtos = m.aberto
     .slice().sort((a,b) => a.venc.localeCompare(b.venc)).slice(0,4);
 
-  const compromissos = [
-    { dia:"28", mes:"AGO", titulo:"Reunião com o cerimonial", hora:"15:00", onde:"Ateliê Cerimônia", quem:"e3" },
-    { dia:"02", mes:"SET", titulo:"Degustação do buffet",     hora:"19:00", onde:"Buffet La Maison", quem:"e1" },
-    { dia:"05", mes:"SET", titulo:"Prova do vestido",          hora:"14:00", onde:"Ateliê Lumière",  quem:"e1" },
-    { dia:"15", mes:"SET", titulo:"Envio dos convites",        hora:"—",     onde:"Online",           quem:"e2" }
-  ];
+  const compromissos = [];
 
   const alertas = [];
   if(m.venc7.length) alertas.push(["warn","alert",`${m.venc7.length} pagamento${m.venc7.length>1?"s vencem":" vence"} nos próximos 7 dias`, money(m.venc7.reduce((a,p)=>a+p.valor,0)) + " no total.", "financeiro"]);
@@ -52,7 +47,7 @@ VIEWS.dashboard = function(){
   <div class="page-head">
     <div>
       <h1 class="page-title">Olá, ${esc(d.casal.noiva)} e ${esc(d.casal.noivo)}.</h1>
-      <p class="page-sub">${contagem().frase} — ${fmtDataExt(d.casal.data)}.</p>
+      <p class="page-sub">${d.casal.data ? `${contagem().frase} — ${fmtDataExt(d.casal.data)}.` : `${contagem().frase} para ver a contagem regressiva e o roteiro do dia.`}</p>
     </div>
     <div class="page-actions">
       <button class="btn" data-rota="cronograma">${ico("calendar")}Ver cronograma</button>
@@ -177,7 +172,7 @@ VIEWS.dashboard = function(){
         <div class="card-head"><h3>O grande dia</h3>
           <button class="link" data-rota="cronograma">Ver cronograma completo ${ico("chevronRight")}</button></div>
         <div class="card-body" style="padding-top:0">
-          <div class="dayline">
+          ${d.cronograma.length ? `<div class="dayline">
             <div class="dayline-track">
               ${(() => {
                 const chave = ["08:00","12:00","17:00","18:00","19:30","21:30","22:30","00:30"];
@@ -191,7 +186,7 @@ VIEWS.dashboard = function(){
                   </div>`).join("");
               })()}
             </div>
-          </div>
+          </div>` : vazio("calendar","Roteiro do dia vazio","Adicione os horários do seu grande dia no Cronograma.","")}
         </div>
       </div>
     </div>
@@ -200,7 +195,7 @@ VIEWS.dashboard = function(){
       <div class="card">
         <div class="card-head"><h3>Próximos compromissos</h3></div>
         <div class="card-body" style="padding-top:10px">
-          ${compromissos.map(c => `
+          ${compromissos.length ? compromissos.map(c => `
             <button class="list-row" style="width:100%;text-align:left" data-rota="cronograma">
               <span style="width:44px;text-align:center;flex:0 0 44px">
                 <span class="num" style="display:block;font-size:20px;line-height:1">${c.dia}</span>
@@ -212,9 +207,10 @@ VIEWS.dashboard = function(){
               </span>
               ${avatarPessoa(c.quem,"sm")}
               <span style="color:var(--muted-2);display:flex">${ico("chevronRight")}</span>
-            </button>`).join("")}
+            </button>`).join("")
+          : vazio("calendar","Nenhum compromisso ainda","Reuniões e marcações com fornecedores aparecem aqui.","")}
         </div>
-        <div class="card-foot"><button class="link" data-rota="cronograma">Ver todos</button></div>
+        ${compromissos.length ? `<div class="card-foot"><button class="link" data-rota="cronograma">Ver todos</button></div>` : ""}
       </div>
 
       <div class="card">
