@@ -53,10 +53,10 @@ function gerarConvidados(){
         id: "c" + (id++),
         nome: primeiro + " " + sobre,
         grupo: g.id,
-        tipo: crianca ? "crianca" : "adulto",
+        faixa: crianca ? "crianca07" : "adulto",
         telefone: "(11) 9" + String(Math.floor(rnd() * 9000) + 1000) + "-" + String(Math.floor(rnd() * 9000) + 1000),
         email: (primeiro + "." + sobre.split(" ")[0]).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "@email.com",
-        acompanhantes: 0,
+        acompanhantes: [],
         rsvp: "pendente",
         mesa: null,
         restricao: crianca ? "" : pick(rnd, RESTRICOES),
@@ -73,7 +73,7 @@ function gerarConvidados(){
 
   /* alguns confirmados trazem acompanhante ainda não nomeado */
   const comAcomp = shuffle(makeRng(31), lista.filter(g => g.rsvp === "confirmado").map(g => g.id)).slice(0, 8);
-  lista.forEach(g => { if(comAcomp.includes(g.id)) g.acompanhantes = 1; });
+  lista.forEach(g => { if(comAcomp.includes(g.id)) g.acompanhantes = [{ nome:"", faixa:"adulto" }]; });
 
   /* observações pontuais, para as telas não ficarem vazias */
   const obs = {

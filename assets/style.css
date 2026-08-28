@@ -690,6 +690,10 @@ tr:hover .row-actions{ opacity:1; }
   .kanban{ grid-template-columns:1fr; }
   .mood-grid{ columns:2; }
   .form-grid{ grid-template-columns:1fr; }
+  /* acompanhantes: nome e faixa em linhas separadas no celular */
+  [data-acomp-linha]{ flex-wrap:wrap; }
+  [data-acomp-linha] input{ flex:1 1 100% !important; }
+  [data-acomp-linha] select{ flex:1 1 auto !important; width:auto !important; }
   .avatar-btn .who{ display:none; }
   .modal{ max-width:100%; border-radius:var(--r-lg); }
   .modal-foot{ border-radius:0 0 var(--r-lg) var(--r-lg); }

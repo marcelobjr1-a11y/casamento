@@ -337,13 +337,13 @@ VIEWS.convidados = function(){
     ["pendente","Pendentes",m.pendentes.length],["recusado","Recusados",m.recusados.length]];
   const filtrosGrupo = [["todos","Todos os grupos",0]].concat(
     GRUPOS.map(g => [g.id, g.nome, App.data.convidados.filter(c => c.grupo === g.id).length]),
-    [["criancas","Crianças", App.data.convidados.filter(c => c.tipo === "crianca").length]]);
+    [["criancas","Com crianças", App.data.convidados.filter(c => pessoasDoConvidado(c).some(p => p.faixa !== "adulto")).length]]);
 
   return `
   <div class="page-head">
     <div>
       <h1 class="page-title">Convidados</h1>
-      <p class="page-sub"><b>${m.confirmados.length + m.acomp}</b> de ${m.totalGeral} pessoas confirmadas${m.acompTotal ? ` · inclui ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : ""}.</p>
+      <p class="page-sub"><b>${m.resumoConfirmados.total}</b> de ${m.totalGeral} pessoas confirmadas${m.acompTotal ? ` · ${m.total} convites e ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : ""}.</p>
     </div>
     <div class="page-actions">
       <button class="btn" data-exportar>${ico("download")}Exportar CSV</button>
@@ -353,11 +353,37 @@ VIEWS.convidados = function(){
   </div>
 
   <div class="grid g-4 mb-20">
-    ${miniStat("Total de pessoas", m.totalGeral, m.acompTotal ? `${m.total} na lista + ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : "pessoas na lista", "users")}
-    ${miniStat("Confirmados", m.confirmados.length + m.acomp, m.acomp ? `${m.confirmados.length} + ${m.acomp} acompanhante${m.acomp>1?"s":""}` : pct(m.confirmados.length,m.total)+"% da lista", "checkCircle","g2")}
-    ${miniStat("Pendentes", m.pendentes.length, "aguardando resposta", "clock","g4")}
+    ${miniStat("Total de pessoas", m.totalGeral, m.acompTotal ? `${m.total} convite${m.total>1?"s":""} + ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : `em ${m.total} convite${m.total>1?"s":""}`, "users")}
+    ${miniStat("Confirmados", m.resumoConfirmados.total, m.totalGeral ? pct(m.resumoConfirmados.total, m.totalGeral)+"% das pessoas" : "pessoas confirmadas", "checkCircle","g2")}
+    ${miniStat("Pendentes", m.pendentes.length, "convites sem resposta", "clock","g4")}
     ${miniStat("Recusados", m.recusados.length, "não poderão ir", "x","g3")}
   </div>
+
+  ${m.totalGeral ? `
+  <div class="card mb-20">
+    <div class="card-body">
+      <div class="between wrap gap-16">
+        <div>
+          <div class="eyebrow mb-8">Composição dos confirmados</div>
+          <div class="center gap-16 wrap">
+            ${[["adulto","Adultos"],["crianca07","Crianças 0-7"],["crianca810","Crianças 8-10"]].map(([id,rot]) => `
+              <div>
+                <div class="num" style="font-size:22px">${m.resumoConfirmados[id] || 0}</div>
+                <div class="t-xs t-muted">${rot}</div>
+              </div>`).join("")}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="eyebrow mb-8">Equivale a pagar</div>
+          <div class="num" style="font-size:30px;color:var(--gold)">${(m.resumoConfirmados.equivalente % 1 ? m.resumoConfirmados.equivalente.toFixed(1).replace(".",",") : m.resumoConfirmados.equivalente)}</div>
+          <div class="t-xs t-muted">adultos no buffet</div>
+        </div>
+      </div>
+      <div class="alert info mt-16">${ico("info")}
+        <div class="a-desc">Crianças de 0 a 7 anos não pagam e as de 8 a 10 pagam meia — duas delas equivalem a um adulto.</div>
+      </div>
+    </div>
+  </div>` : ""}
 
   <div class="card">
     <div class="card-body" style="padding-bottom:0">
@@ -383,20 +409,22 @@ VIEWS.convidados = function(){
       <table class="tbl">
         <thead><tr>
           <th style="width:30%">Convidado</th><th>Grupo</th><th>Telefone</th>
-          <th class="right">Acomp.</th><th>RSVP</th><th>Mesa</th><th>Restrição</th><th></th>
+          <th class="right">Pessoas</th><th>RSVP</th><th>Mesa</th><th>Restrição</th><th></th>
         </tr></thead>
         <tbody>
           ${pag.map(c => {
             const mesa = App.data.mesas.find(x => x.id === c.mesa);
+            const acomp = c.acompanhantes || [];
             return `<tr data-conv="${c.id}" style="cursor:pointer">
               <td><span class="cell-name">
                 ${avatarHTML(c.nome,"sm",c.id)}
                 <span style="min-width:0">
-                  <span class="nm ell" style="display:block">${esc(c.nome)}${c.tipo==="crianca"?` <span class="badge" style="height:18px;font-size:10px">criança</span>`:""}</span>
+                  <span class="nm ell" style="display:block">${esc(c.nome)}${c.faixa!=="adulto"?` <span class="badge" style="height:18px;font-size:10px">${faixa(c.faixa).curto}</span>`:""}</span>
+                  ${acomp.length ? `<span class="t-xs t-muted ell" style="display:block">com ${acomp.map(a => esc(a.nome || "acompanhante") + (a.faixa!=="adulto" ? ` (${faixa(a.faixa).curto})` : "")).join(", ")}</span>` : ""}
                 </span></span></td>
               <td class="t-sm t-ink3 nowrap">${esc(nomeGrupo(c.grupo))}</td>
               <td class="t-sm t-ink3 tnum nowrap">${esc(c.telefone)}</td>
-              <td class="right t-sm tnum">${c.acompanhantes ? "+"+c.acompanhantes : "—"}</td>
+              <td class="right t-sm tnum">${qtdPessoas(c)}</td>
               <td>${badgeRSVP(c.rsvp)}</td>
               <td class="t-sm">${mesa ? `<span class="badge gold">${esc(mesa.nome)}</span>` : `<span class="t-muted">—</span>`}</td>
               <td class="t-sm t-ink3" style="max-width:150px">${c.restricao ? esc(c.restricao) : `<span class="t-muted">—</span>`}</td>
@@ -440,7 +468,7 @@ function filtrarConvidados(){
   const q = f.busca.trim().toLowerCase();
   return App.data.convidados.filter(c => {
     if(f.rsvp !== "todos" && c.rsvp !== f.rsvp) return false;
-    if(f.grupo === "criancas"){ if(c.tipo !== "crianca") return false; }
+    if(f.grupo === "criancas"){ if(!pessoasDoConvidado(c).some(p => p.faixa !== "adulto")) return false; }
     else if(f.grupo !== "todos" && c.grupo !== f.grupo) return false;
     if(q && !(c.nome.toLowerCase().includes(q) || c.telefone.includes(q))) return false;
     return true;
@@ -510,10 +538,16 @@ POS_RENDER.convidados = function(){
 };
 
 function exportarConvidados(){
-  const linhas = [["Nome","Grupo","Telefone","Acompanhantes","RSVP","Mesa","Restrição","Observações"]];
+  const linhas = [["Nome","Faixa etária","Convite de","Grupo","Telefone","RSVP","Mesa","Restrição","Observações"]];
   filtrarConvidados().forEach(c => {
     const mesa = App.data.mesas.find(x => x.id === c.mesa);
-    linhas.push([c.nome, nomeGrupo(c.grupo), c.telefone, c.acompanhantes, c.rsvp, mesa?mesa.nome:"", c.restricao, c.obs]);
+    pessoasDoConvidado(c).forEach(p => {
+      linhas.push([
+        p.nome || "(acompanhante sem nome)", nomeFaixa(p.faixa), p.titular ? "—" : c.nome,
+        nomeGrupo(c.grupo), p.titular ? c.telefone : "", c.rsvp, mesa?mesa.nome:"",
+        p.titular ? c.restricao : "", p.titular ? c.obs : ""
+      ]);
+    });
   });
   const csv = linhas.map(l => l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
   const url = URL.createObjectURL(new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8" }));
@@ -561,7 +595,7 @@ function abrirConvidado(id){
   const mesa = App.data.mesas.find(x => x.id === c.mesa);
   modal({
     titulo:esc(c.nome),
-    sub:`${esc(nomeGrupo(c.grupo))}${c.tipo==="crianca"?" · criança":""}`,
+    sub:`${esc(nomeGrupo(c.grupo))} · ${nomeFaixa(c.faixa)}`,
     corpo:`
       <div class="center gap-16 mb-20">
         ${avatarHTML(c.nome,"xl",c.id)}
@@ -572,9 +606,18 @@ function abrirConvidado(id){
       <div class="grid g-2" style="gap:12px">
         ${linhaInfo("Grupo", nomeGrupo(c.grupo))}
         ${linhaInfo("Mesa", mesa ? mesa.nome : "Sem mesa definida")}
-        ${linhaInfo("Acompanhantes", c.acompanhantes ? String(c.acompanhantes) : "Nenhum")}
+        ${linhaInfo("Total de pessoas", String(qtdPessoas(c)))}
         ${linhaInfo("Restrição alimentar", c.restricao || "Nenhuma")}
       </div>
+      ${(c.acompanhantes||[]).length ? `<div class="mt-16">
+        <div class="eyebrow mb-8">Acompanhantes (${c.acompanhantes.length})</div>
+        ${c.acompanhantes.map(a => `
+          <div class="list-row" style="padding:9px 0">
+            ${avatarHTML(a.nome || "?","sm", a.nome || Math.random())}
+            <span class="grow" style="font-size:13px">${esc(a.nome || "Nome não informado")}</span>
+            <span class="badge ${a.faixa!=="adulto"?"gold":""}">${nomeFaixa(a.faixa)}</span>
+          </div>`).join("")}
+      </div>` : ""}
       ${c.obs ? `<div class="mt-16"><div class="eyebrow mb-8">Observações</div>
         <p class="t-sm t-ink3" style="line-height:1.6">${esc(c.obs)}</p></div>` : ""}
       <div class="sep"></div>
@@ -610,7 +653,7 @@ function linhaInfo(rotulo, valor){
 function abrirFormConvidado(id){
   const c = id ? App.data.convidados.find(x => x.id === id) : null;
   const mesasOpts = App.data.mesas.map(m => {
-    const ocup = App.data.convidados.filter(x => x.mesa === m.id).length;
+    const ocup = App.data.convidados.filter(x => x.mesa === m.id).reduce((a,g) => a + qtdPessoas(g), 0);
     return `<option value="${m.id}" ${c && c.mesa===m.id?"selected":""}>${esc(m.nome)} — ${ocup}/${m.lugares}</option>`;
   }).join("");
   modal({
@@ -625,13 +668,10 @@ function abrirFormConvidado(id){
         <select class="select" name="grupo">
           ${GRUPOS.map(g => `<option value="${g.id}" ${c&&c.grupo===g.id?"selected":""}>${esc(g.nome)}</option>`).join("")}
         </select></div>
-      <div class="field"><label>Tipo</label>
-        <select class="select" name="tipo">
-          <option value="adulto" ${c&&c.tipo==="adulto"?"selected":""}>Adulto</option>
-          <option value="crianca" ${c&&c.tipo==="crianca"?"selected":""}>Criança</option>
+      <div class="field"><label>Faixa etária</label>
+        <select class="select" name="faixa">
+          ${FAIXAS.map(f => `<option value="${f.id}" ${c&&c.faixa===f.id?"selected":""}>${esc(f.nome)}</option>`).join("")}
         </select></div>
-      <div class="field"><label>Acompanhantes</label>
-        <input class="input" name="acompanhantes" type="number" min="0" max="6" value="${c?c.acompanhantes:0}"></div>
       <div class="field"><label>Status do RSVP</label>
         <select class="select" name="rsvp">
           <option value="pendente"   ${c&&c.rsvp==="pendente"?"selected":""}>Pendente</option>
@@ -642,20 +682,61 @@ function abrirFormConvidado(id){
         <input class="input" name="restricao" value="${c?esc(c.restricao):""}" placeholder="Ex.: vegetariano"></div>
       <div class="field"><label>Mesa</label>
         <select class="select" name="mesa"><option value="">Sem mesa</option>${mesasOpts}</select></div>
+      <div class="field full">
+        <div class="sep" style="margin:4px 0 14px"></div>
+        <div class="between" style="margin-bottom:8px">
+          <label style="margin:0">Acompanhantes</label>
+          <button type="button" class="btn btn-sm" id="add-acomp">${ico("plus")}Adicionar</button>
+        </div>
+        <div id="lista-acomp"></div>
+        <span class="hint" id="hint-acomp"></span>
+      </div>
       <div class="field full"><label>Observações</label>
         <textarea class="textarea" name="obs" placeholder="Anotações sobre este convidado…">${c?esc(c.obs):""}</textarea></div>
     </form>`,
     rodape:`<button class="btn" data-fechar>Cancelar</button>
             <button class="btn btn-primary" id="salvar-conv">${c?"Salvar alterações":"Adicionar convidado"}</button>`,
     aoAbrir(w){
+      /* acompanhantes editáveis em memória, redesenhados a cada mudança */
+      let acomp = (c && c.acompanhantes ? c.acompanhantes.map(a => ({ ...a })) : []);
+      const cxAcomp = w.querySelector("#lista-acomp");
+      const hint = w.querySelector("#hint-acomp");
+      function desenharAcomp(){
+        cxAcomp.innerHTML = acomp.length ? acomp.map((a,i) => `
+          <div class="center gap-8 mb-8" data-acomp-linha="${i}">
+            <input class="input" data-acomp-nome="${i}" value="${esc(a.nome)}" placeholder="Nome do acompanhante" style="flex:1;min-width:0">
+            <select class="select" data-acomp-faixa="${i}" style="width:auto;flex:0 0 152px">
+              ${FAIXAS.map(f => `<option value="${f.id}" ${a.faixa===f.id?"selected":""}>${esc(f.nome)}</option>`).join("")}
+            </select>
+            <button type="button" class="mini-btn danger" data-acomp-remover="${i}" title="Remover">${ico("trash")}</button>
+          </div>`).join("") : `<p class="t-sm t-muted" style="margin-bottom:8px">Nenhum acompanhante ainda.</p>`;
+        const total = 1 + acomp.length;
+        hint.textContent = `Este convite representa ${total} pessoa${total>1?"s":""} no total.`;
+      }
+      desenharAcomp();
+
+      w.querySelector("#add-acomp").onclick = () => { acomp.push({ nome:"", faixa:"adulto" }); desenharAcomp(); };
+      cxAcomp.addEventListener("input", e => {
+        const n = e.target.closest("[data-acomp-nome]");
+        if(n){ acomp[+n.dataset.acompNome].nome = n.value; return; }
+      });
+      cxAcomp.addEventListener("change", e => {
+        const f2 = e.target.closest("[data-acomp-faixa]");
+        if(f2){ acomp[+f2.dataset.acompFaixa].faixa = f2.value; return; }
+      });
+      cxAcomp.addEventListener("click", e => {
+        const r = e.target.closest("[data-acomp-remover]");
+        if(r){ acomp.splice(+r.dataset.acompRemover, 1); desenharAcomp(); }
+      });
+
       w.querySelector("#salvar-conv").onclick = () => {
         const fd = new FormData(w.querySelector("#form-conv"));
         const nome = String(fd.get("nome")||"").trim();
         if(!nome){ toast("Informe o nome do convidado.","err"); return; }
         const dados = {
           nome, telefone:fd.get("telefone")||"",
-          grupo:fd.get("grupo"), tipo:fd.get("tipo"),
-          acompanhantes:Number(fd.get("acompanhantes"))||0,
+          grupo:fd.get("grupo"), faixa:fd.get("faixa"),
+          acompanhantes: acomp.map(a => ({ nome:String(a.nome||"").trim(), faixa:a.faixa })),
           rsvp:fd.get("rsvp"), restricao:fd.get("restricao")||"",
           mesa:fd.get("mesa")||null, obs:fd.get("obs")||""
         };
@@ -816,7 +897,7 @@ VIEWS.mesas = function(){
   const confirmados = d.convidados.filter(c => c.rsvp === "confirmado");
   const semMesa = confirmados.filter(c => !c.mesa);
   const lugares = d.mesas.reduce((a,m) => a + m.lugares, 0);
-  const ocupados = confirmados.filter(c => c.mesa).length;
+  const ocupados = confirmados.filter(c => c.mesa).reduce((a,c) => a + qtdPessoas(c), 0);
 
   return `
   <div class="page-head">
@@ -847,16 +928,17 @@ VIEWS.mesas = function(){
         <div class="hall" id="hall">
           ${d.mesas.map(m => {
             const oc = d.convidados.filter(c => c.mesa === m.id);
-            const cheia = oc.length >= m.lugares;
+            const pessoasNaMesa = oc.reduce((a,c) => a + qtdPessoas(c), 0);
+            const cheia = pessoasNaMesa >= m.lugares;
             const assentos = Array.from({length:m.lugares}, (_,i) => {
               const ang = (i / m.lugares) * Math.PI * 2 - Math.PI/2;
               const x = 32 + Math.cos(ang) * 34 - 4.5, y = 32 + Math.sin(ang) * 34 - 4.5;
-              return `<i class="tn-seat ${i < oc.length ? "taken":""}" style="left:${x}px;top:${y}px"></i>`;
+              return `<i class="tn-seat ${i < pessoasNaMesa ? "taken":""}" style="left:${x}px;top:${y}px"></i>`;
             }).join("");
             return `<div class="table-node ${cheia?"full":""} ${m.destaque?"tn-head":""}" data-mesa="${m.id}" title="${esc(m.nome)}">
               <div class="tn-circle"><span class="n">${m.destaque ? "&#10084;" : esc(m.nome.replace(/\D/g,"") || "•")}</span>${assentos}</div>
               <div class="tn-name">${esc(m.nome)}</div>
-              <div class="tn-cap">${oc.length}/${m.lugares} lugares</div>
+              <div class="tn-cap">${pessoasNaMesa}/${m.lugares} lugares</div>
             </div>`;
           }).join("")}
         </div>
@@ -871,7 +953,7 @@ VIEWS.mesas = function(){
             <div class="pool-item" draggable="true" data-guest="${c.id}">
               ${avatarHTML(c.nome,"sm",c.id)}
               <span class="grow" style="min-width:0">
-                <span class="ell" style="display:block;font-size:12.5px;font-weight:480">${esc(c.nome)}</span>
+                <span class="ell" style="display:block;font-size:12.5px;font-weight:480">${esc(c.nome)}${qtdPessoas(c)>1?` <span class="badge gold" style="height:16px;font-size:9.5px">${qtdPessoas(c)}p</span>`:""}</span>
                 <span class="t-xs t-muted ell" style="display:block">${esc(nomeGrupo(c.grupo))}</span>
               </span>
             </div>`).join("")}
@@ -924,14 +1006,23 @@ POS_RENDER.mesas = function(){
   });
 };
 
+function pessoasNaMesa(mid){
+  return App.data.convidados.filter(x => x.mesa === mid).reduce((a,c) => a + qtdPessoas(c), 0);
+}
 function alocar(gid, mid){
   const c = App.data.convidados.find(x => x.id === gid);
   const m = App.data.mesas.find(x => x.id === mid);
   if(!c || !m) return;
-  const oc = App.data.convidados.filter(x => x.mesa === mid).length;
-  if(oc >= m.lugares){ toast(`${m.nome} já está completa.`,"err"); return; }
+  const precisa = qtdPessoas(c);
+  const livres = m.lugares - pessoasNaMesa(mid);
+  if(livres < precisa){
+    toast(precisa > 1
+      ? `${m.nome} tem ${livres} lugar(es) livre(s), mas este convite precisa de ${precisa}.`
+      : `${m.nome} já está completa.`, "err");
+    return;
+  }
   c.mesa = mid; salvar(); render();
-  toast(`${c.nome} → ${m.nome}.`,"ok");
+  toast(`${c.nome}${precisa>1?` (+${precisa-1})`:""} → ${m.nome}.`,"ok");
 }
 function autoAlocar(){
   const d = App.data;
@@ -939,7 +1030,8 @@ function autoAlocar(){
     .sort((a,b) => a.grupo.localeCompare(b.grupo));
   let n = 0;
   semMesa.forEach(c => {
-    const mesa = d.mesas.find(m => d.convidados.filter(x => x.mesa === m.id).length < m.lugares);
+    const precisa = qtdPessoas(c);
+    const mesa = d.mesas.find(m => (m.lugares - pessoasNaMesa(m.id)) >= precisa);
     if(mesa){ c.mesa = mesa.id; n++; }
   });
   salvar(); render();
@@ -949,27 +1041,29 @@ function autoAlocar(){
 function abrirMesa(id){
   const m = App.data.mesas.find(x => x.id === id); if(!m) return;
   const oc = App.data.convidados.filter(c => c.mesa === id);
-  const livres = App.data.convidados.filter(c => c.rsvp === "confirmado" && !c.mesa);
+  const pessoas = oc.reduce((a,c) => a + qtdPessoas(c), 0);
+  const vagas = m.lugares - pessoas;
+  const livres = App.data.convidados.filter(c => c.rsvp === "confirmado" && !c.mesa && qtdPessoas(c) <= vagas);
   modal({
     titulo:esc(m.nome),
-    sub:`${oc.length} de ${m.lugares} lugares ocupados`,
+    sub:`${pessoas} de ${m.lugares} lugares ocupados`,
     corpo:`
-      <div class="mb-16">${barra(oc.length, m.lugares, oc.length >= m.lugares ? "ok" : "", "thick")}</div>
+      <div class="mb-16">${barra(pessoas, m.lugares, pessoas >= m.lugares ? "ok" : "", "thick")}</div>
       <div class="eyebrow mb-8">Convidados nesta mesa</div>
       ${oc.length ? oc.map(c => `
         <div class="list-row">
           ${avatarHTML(c.nome,"sm",c.id)}
-          <span class="grow"><span style="display:block;font-size:13px;font-weight:480">${esc(c.nome)}</span>
+          <span class="grow"><span style="display:block;font-size:13px;font-weight:480">${esc(c.nome)}${qtdPessoas(c)>1?` <span class="t-xs t-muted">+${qtdPessoas(c)-1}</span>`:""}</span>
           <span class="t-xs t-muted">${esc(nomeGrupo(c.grupo))}${c.restricao?` · ${esc(c.restricao)}`:""}</span></span>
           <button class="mini-btn danger" data-remover="${c.id}" title="Remover da mesa">${ico("x")}</button>
         </div>`).join("")
       : `<p class="t-sm t-muted" style="padding:12px 0">Nenhum convidado nesta mesa ainda.</p>`}
-      ${oc.length < m.lugares && livres.length ? `
+      ${vagas > 0 && livres.length ? `
         <div class="sep"></div>
         <div class="eyebrow mb-8">Adicionar convidado</div>
         <div class="center gap-8">
           <select class="select" id="sel-add-mesa">
-            ${livres.slice(0,80).map(c => `<option value="${c.id}">${esc(c.nome)} — ${esc(nomeGrupo(c.grupo))}</option>`).join("")}
+            ${livres.slice(0,80).map(c => `<option value="${c.id}">${esc(c.nome)}${qtdPessoas(c)>1?` (+${qtdPessoas(c)-1})`:""} — ${esc(nomeGrupo(c.grupo))}</option>`).join("")}
           </select>
           <button class="btn btn-primary" id="btn-add-mesa" style="flex:0 0 auto">${ico("plus")}Adicionar</button>
         </div>` : ""}`,

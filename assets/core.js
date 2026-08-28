@@ -40,6 +40,15 @@ function carregar(){
             pixChave:"", pixTitular:"", fotoCapa:"", sitePublicadoEm:"" });
         }
         if(!GRUPOS.some(g => g.id === "site")) GRUPOS.push({ id:"site", nome:"Confirmados pelo site", qtd:0 });
+        /* faixa etária por pessoa + acompanhantes com nome */
+        (d.convidados || []).forEach(c => {
+          if(c.faixa === undefined) c.faixa = c.tipo === "crianca" ? "crianca07" : "adulto";
+          if(!Array.isArray(c.acompanhantes)){
+            const n = Number(c.acompanhantes) || 0;
+            c.acompanhantes = Array.from({ length:n }, () => ({ nome:"", faixa:"adulto" }));
+          }
+          delete c.tipo;
+        });
         return d;
       }
     }
@@ -246,6 +255,38 @@ function lerRota(){
   App.param = partes[1] || null;
 }
 
+/* ---------------- faixas etárias e contagem de pessoas ---------------- */
+/* peso = quanto a pessoa representa na cobrança do buffet
+   (0-7 anos não paga; 8-10 paga meia, então 2 = 1 adulto) */
+const FAIXAS = [
+  { id:"adulto",     nome:"Adulto",           curto:"Adulto",   peso:1   },
+  { id:"crianca07",  nome:"Criança 0 a 7",    curto:"0-7",      peso:0   },
+  { id:"crianca810", nome:"Criança 8 a 10",   curto:"8-10",     peso:0.5 }
+];
+function faixa(id){ return FAIXAS.find(f => f.id === id) || FAIXAS[0]; }
+function nomeFaixa(id){ return faixa(id).nome; }
+
+/* devolve todas as pessoas de um convite: o titular + os acompanhantes */
+function pessoasDoConvidado(c){
+  const lista = [{ nome:c.nome, faixa:c.faixa || "adulto", titular:true }];
+  (c.acompanhantes || []).forEach(a => lista.push({ nome:a.nome || "", faixa:a.faixa || "adulto", titular:false }));
+  return lista;
+}
+/* quantas pessoas um convite representa (titular + acompanhantes) */
+function qtdPessoas(c){ return 1 + (c.acompanhantes || []).length; }
+
+/* resumo de um conjunto de convidados: total de pessoas, por faixa e o
+   equivalente pagante para o buffet */
+function resumoPessoas(convidados){
+  const r = { total:0, adulto:0, crianca07:0, crianca810:0, equivalente:0 };
+  convidados.forEach(c => pessoasDoConvidado(c).forEach(p => {
+    r.total++;
+    r[p.faixa] = (r[p.faixa] || 0) + 1;
+    r.equivalente += faixa(p.faixa).peso;
+  }));
+  return r;
+}
+
 /* ---------------- cálculos globais ---------------- */
 function metricas(){
   const d = App.data;
@@ -253,8 +294,10 @@ function metricas(){
   const confirmados = conv.filter(c => c.rsvp === "confirmado");
   const pendentes   = conv.filter(c => c.rsvp === "pendente");
   const recusados   = conv.filter(c => c.rsvp === "recusado");
-  const acomp = confirmados.reduce((a,c) => a + (c.acompanhantes||0), 0);
-  const acompTotal = conv.reduce((a,c) => a + (c.acompanhantes||0), 0);
+  const resumoTodos = resumoPessoas(conv);
+  const resumoConfirmados = resumoPessoas(confirmados);
+  const acomp = confirmados.reduce((a,c) => a + (c.acompanhantes||[]).length, 0);
+  const acompTotal = conv.reduce((a,c) => a + (c.acompanhantes||[]).length, 0);
 
   const contratados = d.fornecedores.filter(f => f.status === "Contratado" || f.status === "Concluído");
   const valorContratado = contratados.reduce((a,f) => a + f.valor, 0);
@@ -272,8 +315,9 @@ function metricas(){
 
   return {
     total: conv.length, confirmados, pendentes, recusados, acomp, acompTotal,
-    pessoas: confirmados.length + acomp,
-    totalGeral: conv.length + acompTotal,
+    resumoTodos, resumoConfirmados,
+    pessoas: resumoConfirmados.total,
+    totalGeral: resumoTodos.total,
     contratados, valorContratado, valorPago, valorRestante,
     orcamento: d.casal.orcamento,
     aberto, venc7, vencidos, atrasadas,
@@ -697,14 +741,22 @@ async function importarRespostasSite(manual){
     if(novas.length){
       novas.forEach(l => {
         const partes = [];
-        if(l.criancas) partes.push(`${l.criancas} criança(s) no grupo`);
         if(l.mensagem) partes.push(`Recado: "${l.mensagem}"`);
         partes.push(`Confirmado pelo site em ${new Date(l.criado_em).toLocaleDateString("pt-BR")}`);
+        /* o site informa só quantidades; as faixas etárias entram como
+           adulto/criança e podem ser ajustadas depois no Ateliê */
+        const totalPessoas = Math.max(1, l.quantidade_pessoas || 1);
+        const criancas = Math.min(Math.max(0, l.criancas || 0), totalPessoas - 1);
+        const acompanhantes = [];
+        for(let i = 0; i < totalPessoas - 1; i++){
+          acompanhantes.push({ nome:"", faixa: i < criancas ? "crianca07" : "adulto" });
+        }
+        if(criancas) partes.unshift(`${criancas} criança(s) informadas no site — confira a faixa etária`);
         App.data.convidados.unshift({
           id: uid("c"), origemSiteId: l.id,
-          nome: l.nome, grupo: "site", tipo: "adulto",
+          nome: l.nome, grupo: "site", faixa: "adulto",
           telefone: l.telefone || "",
-          acompanhantes: Math.max(0, (l.quantidade_pessoas || 1) - 1),
+          acompanhantes,
           rsvp: l.status === "confirmado" ? "confirmado" : "recusado",
           mesa: null, restricao: l.restricao || "", obs: partes.join(" · ")
         });
