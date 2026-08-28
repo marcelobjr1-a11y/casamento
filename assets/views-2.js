@@ -187,6 +187,14 @@ function abrirFornecedor(id){
       </div>
       <div class="mt-12">${barra(x.pago, x.valor, "ok", "thick")}</div>` : ""}
 
+      ${x.pixChave ? `
+      <div class="sep"></div>
+      <div class="eyebrow mb-8">Pix para pagamento</div>
+      <div class="between" style="padding:11px 13px;background:var(--surface-2);border-radius:10px">
+        <span style="font-size:13.5px;word-break:break-all">${esc(x.pixChave)}${x.pixTitular?` <span class="t-xs t-muted">· ${esc(x.pixTitular)}</span>`:""}</span>
+        <button class="btn btn-sm" data-copiar-pix="${esc(x.pixChave)}" style="flex:0 0 auto">${ico("copy")}Copiar</button>
+      </div>` : ""}
+
       <div class="sep"></div>
       <div class="eyebrow mb-8">Observações</div>
       <p class="t-sm t-ink3" style="line-height:1.65">${esc(x.nota)}</p>
@@ -219,6 +227,11 @@ function abrirFornecedor(id){
       w.addEventListener("click", e => {
         if(e.target.closest("[data-editar]")){ fecharModal(); abrirFormFornecedor(id); }
         if(e.target.closest("[data-pagamento]")){ fecharModal(); abrirFormPagamento(null, id); }
+        const cp = e.target.closest("[data-copiar-pix]");
+        if(cp){
+          if(navigator.clipboard) navigator.clipboard.writeText(cp.dataset.copiarPix).catch(()=>{});
+          toast("Chave Pix copiada.","ok"); return;
+        }
         if(e.target.closest("[data-excluir]")){
           fecharModal();
           confirmar("Excluir fornecedor", `Remover <strong>${esc(x.nome)}</strong> e seus pagamentos?`, () => {
@@ -261,6 +274,10 @@ function abrirFormFornecedor(id){
       <div class="field" style="justify-content:flex-end">
         <label class="switch"><input type="checkbox" name="contrato" ${x&&x.contrato?"checked":""}>
         <span class="track"></span><span class="t-sm">Contrato assinado</span></label></div>
+      <div class="field"><label>Chave Pix</label>
+        <input class="input" name="pixChave" value="${x?esc(x.pixChave||""):""}" placeholder="E-mail, CPF/CNPJ, telefone ou chave aleatória"></div>
+      <div class="field"><label>Titular do Pix</label>
+        <input class="input" name="pixTitular" value="${x?esc(x.pixTitular||""):""}" placeholder="Nome de quem recebe"></div>
       <div class="field full"><label>Observações</label>
         <textarea class="textarea" name="nota" placeholder="O que está incluído, condições, combinados…">${x?esc(x.nota):""}</textarea></div>
 
@@ -312,7 +329,8 @@ function abrirFormFornecedor(id){
           nome, cat:fd.get("cat"), status:fd.get("status"), contato:fd.get("contato")||"",
           tel:fd.get("tel")||"", email:fd.get("email")||"",
           valor:Number(fd.get("valor"))||0, pago:Number(fd.get("pago"))||0,
-          data:fd.get("data")||"", contrato:!!fd.get("contrato"), nota:fd.get("nota")||""
+          data:fd.get("data")||"", contrato:!!fd.get("contrato"), nota:fd.get("nota")||"",
+          pixChave:fd.get("pixChave")||"", pixTitular:fd.get("pixTitular")||""
         };
         let alvo;
         if(x){ Object.assign(x, dados); alvo = x; }
