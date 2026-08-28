@@ -291,6 +291,27 @@ function contagem(){
   return { num:Math.abs(n), rotulo:"dias atrás", passado:true, frase:`O casamento foi há <b>${Math.abs(n)}</b> dias` };
 }
 
+/* monta o link do WhatsApp a partir de um telefone brasileiro e uma mensagem */
+function linkWhatsApp(telefone, mensagem){
+  let digitos = String(telefone||"").replace(/\D/g,"");
+  if(!digitos) return null;
+  if(digitos.length <= 11) digitos = "55" + digitos; // acrescenta o código do Brasil
+  return `https://wa.me/${digitos}?text=${encodeURIComponent(mensagem||"")}`;
+}
+function abrirWhatsApp(telefone, mensagem){
+  const link = linkWhatsApp(telefone, mensagem);
+  if(!link){ toast("Este convidado não tem telefone cadastrado.","err"); return false; }
+  window.open(link, "_blank", "noopener");
+  return true;
+}
+
+/* mensagem pronta de lembrete de RSVP, personalizada por convidado */
+function mensagemLembreteRSVP(convidado){
+  const c = App.data.casal;
+  const primeiroNome = String(convidado.nome||"").trim().split(/\s+/)[0];
+  return `Oi ${primeiroNome}! Aqui é ${c.noiva} e ${c.noivo} 💛 Passando só pra lembrar de confirmar sua presença no nosso casamento — leva 1 minutinho! Se ainda não respondeu, dá uma olhadinha por aqui, tá? Obrigado!`;
+}
+
 function fornecedor(id){ return App.data.fornecedores.find(f => f.id === id); }
 function pessoa(id){ return App.data.equipe.find(e => e.id === id); }
 function nomeGrupo(id){

@@ -524,6 +524,39 @@ function exportarConvidados(){
   toast("Lista exportada em CSV.","ok");
 }
 
+function abrirListaLembretes(){
+  const pendentes = App.data.convidados.filter(c => c.rsvp === "pendente");
+  modal({
+    titulo: "Enviar lembrete de RSVP",
+    sub: `${pendentes.length} convidados ainda não responderam`,
+    tamanho: "wide",
+    corpo: pendentes.length ? `
+      <p class="t-sm t-ink3 mb-16">Clique em cada um para abrir o WhatsApp já com a mensagem escrita — você revisa e envia por lá, um de cada vez.</p>
+      <div id="lista-lembretes">
+        ${pendentes.map(c => `
+          <div class="list-row" data-linha="${c.id}">
+            ${avatarHTML(c.nome,"sm",c.id)}
+            <span class="grow" style="min-width:0">
+              <span class="ell" style="display:block;font-size:13px;font-weight:480">${esc(c.nome)}</span>
+              <span class="t-xs t-muted">${c.telefone ? esc(c.telefone) : "sem telefone cadastrado"}</span>
+            </span>
+            <button class="btn btn-sm" data-enviar-lembrete="${c.id}" ${!c.telefone?"disabled":""}>${ico("send")}Enviar</button>
+          </div>`).join("")}
+      </div>`
+      : vazio("checkCircle","Todos responderam!","Não há convidados pendentes de RSVP.",""),
+    rodape: `<button class="btn btn-primary" data-fechar>Concluir</button>`,
+    aoAbrir(w){
+      w.addEventListener("click", e => {
+        const b = e.target.closest("[data-enviar-lembrete]"); if(!b) return;
+        const c = App.data.convidados.find(x => x.id === b.dataset.enviarLembrete);
+        if(abrirWhatsApp(c.telefone, mensagemLembreteRSVP(c))){
+          b.disabled = true; b.innerHTML = `${ico("check")}Enviado`;
+        }
+      });
+    }
+  });
+}
+
 function abrirConvidado(id){
   const c = App.data.convidados.find(x => x.id === id); if(!c) return;
   const mesa = App.data.mesas.find(x => x.id === c.mesa);
@@ -552,14 +585,20 @@ function abrirConvidado(id){
         ${[["confirmado","Confirmado"],["pendente","Pendente"],["recusado","Não vai"]].map(([v,n]) =>
           `<button class="chip ${c.rsvp===v?"active":""}" data-rsvp="${v}">${n}</button>`).join("")}
       </div>`,
-    rodape:`<button class="btn" data-fechar>Fechar</button>
+    rodape:`${c.telefone ? `<button class="btn" data-whatsapp>${ico("send")}WhatsApp</button>` : ""}
+            <div class="grow"></div>
+            <button class="btn" data-fechar>Fechar</button>
             <button class="btn btn-primary" data-editar>Editar convidado</button>`,
     aoAbrir(w){
       w.addEventListener("click", e => {
         const r = e.target.closest("[data-rsvp]");
         if(r){ c.rsvp = r.dataset.rsvp; if(c.rsvp !== "confirmado") c.mesa = null;
                salvar(); fecharModal(); render(); toast("RSVP atualizado.","ok"); return; }
-        if(e.target.closest("[data-editar]")){ fecharModal(); abrirFormConvidado(c.id); }
+        if(e.target.closest("[data-editar]")){ fecharModal(); abrirFormConvidado(c.id); return; }
+        if(e.target.closest("[data-whatsapp]")){
+          const msg = c.rsvp === "pendente" ? mensagemLembreteRSVP(c) : "";
+          abrirWhatsApp(c.telefone, msg);
+        }
       });
     }
   });
@@ -756,16 +795,13 @@ POS_RENDER.rsvp = function(){
       toast("Link copiado para a área de transferência.","ok"); return;
     }
     if(e.target.closest("[data-lembrete-todos]")){
-      const n = metricas().pendentes.length;
-      confirmar("Enviar lembrete de RSVP",
-        `Um lembrete será enviado por WhatsApp e e-mail para os <strong>${n} convidados</strong> que ainda não responderam.`,
-        () => toast(`Lembrete enviado para ${n} convidados.`,"ok"), "Enviar lembretes");
-      return;
+      abrirListaLembretes(); return;
     }
     const l = e.target.closest("[data-lembrete]");
     if(l){
       const c = App.data.convidados.find(x => x.id === l.dataset.lembrete);
-      toast(`Lembrete enviado para ${c.nome}.`,"ok"); return;
+      if(abrirWhatsApp(c.telefone, mensagemLembreteRSVP(c))) toast(`WhatsApp aberto para ${c.nome}.`,"ok");
+      return;
     }
     const mc = e.target.closest("[data-marcar-conf]");
     if(mc){
