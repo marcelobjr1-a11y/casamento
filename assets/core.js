@@ -587,6 +587,84 @@ async function chamarRPCSite(nome, corpo){
   return dados;
 }
 /* redimensiona e comprime uma imagem no navegador, devolvendo um data URI JPEG leve */
+/* ---------------- arquivos anexados (contratos, comprovantes) ---------------- */
+/* os bytes ficam no IndexedDB (bem mais espaço que localStorage);
+   só o nome/tamanho/categoria fica em App.data.documentos */
+const ARQ_DB = "atelie_arquivos", ARQ_STORE = "arquivos";
+function abrirArquivosDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(ARQ_DB, 1);
+    req.onupgradeneeded = () => { if(!req.result.objectStoreNames.contains(ARQ_STORE)) req.result.createObjectStore(ARQ_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function salvarArquivoBlob(id, blob){
+  const db = await abrirArquivosDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ARQ_STORE, "readwrite");
+    tx.objectStore(ARQ_STORE).put(blob, id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function lerArquivoBlob(id){
+  const db = await abrirArquivosDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ARQ_STORE, "readonly");
+    const req = tx.objectStore(ARQ_STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function excluirArquivoBlob(id){
+  try{
+    const db = await abrirArquivosDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(ARQ_STORE, "readwrite");
+      tx.objectStore(ARQ_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(e){ /* ignora — não é crítico */ }
+}
+function tipoArquivoPorNome(nome){
+  const ext = (String(nome).split(".").pop()||"").toLowerCase();
+  return ["jpg","jpeg","png","gif","webp","heic"].includes(ext) ? "img"
+       : ["xls","xlsx","csv"].includes(ext) ? "xls"
+       : ["doc","docx"].includes(ext) ? "doc" : "pdf";
+}
+function fmtTamanhoArquivo(bytes){
+  if(!bytes) return "—";
+  return bytes/1024/1024 >= 1 ? (bytes/1024/1024).toFixed(1)+" MB" : Math.max(1,Math.round(bytes/1024))+" KB";
+}
+/* guarda o arquivo de verdade + o registro em App.data.documentos; devolve o registro criado */
+async function anexarArquivo(arquivo, extras){
+  const id = uid("d");
+  await salvarArquivoBlob(id, arquivo);
+  const doc = {
+    id, nome: (extras && extras.nome) || arquivo.name,
+    cat: (extras && extras.cat) || "Outros",
+    tipo: tipoArquivoPorNome((extras && extras.nome) || arquivo.name),
+    tam: fmtTamanhoArquivo(arquivo.size),
+    data: new Date().toISOString().slice(0,10),
+    forn: (extras && extras.forn) || "",
+    pagamento: (extras && extras.pagamento) || "",
+    assinado: !!(extras && extras.assinado)
+  };
+  App.data.documentos.unshift(doc);
+  salvar();
+  return doc;
+}
+async function baixarArquivo(docId){
+  const doc = App.data.documentos.find(d => d.id === docId); if(!doc) return;
+  const blob = await lerArquivoBlob(docId);
+  if(!blob){ toast("Este arquivo não tem os bytes salvos (documento de exemplo ou de uma versão anterior).","err"); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = doc.nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
 function arquivoParaFotoComprimida(arquivo, larguraMax){
   return new Promise((resolve, reject) => {
     if(!arquivo || !arquivo.type.startsWith("image/")){ reject(new Error("Escolha um arquivo de imagem.")); return; }

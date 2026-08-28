@@ -209,24 +209,42 @@ function abrirFornecedor(id){
           ${badgePagamento(p)}
         </div>`).join("")}` : ""}
 
-      ${docs.length ? `<div class="sep"></div>
-      <div class="eyebrow mb-8">Documentos (${docs.length})</div>
-      ${docs.map(dd => `
+      <div class="sep"></div>
+      <div class="between mb-8">
+        <span class="eyebrow" style="margin:0">Documentos (${docs.length})</span>
+        <button class="link" data-anexar-contrato>${ico("upload")}Anexar contrato</button>
+      </div>
+      ${docs.length ? docs.map(dd => `
         <div class="list-row">
-          <span class="doc-ico ${dd.tipo}">${dd.tipo.toUpperCase()}</span>
-          <span class="grow"><span class="ell" style="display:block;font-size:13px">${esc(dd.nome)}</span>
-          <span class="t-xs t-muted">${esc(dd.tam)} · ${fmtData(dd.data)}</span></span>
-          ${dd.assinado?`<span class="badge ok">Assinado</span>`:`<span class="badge warn">Pendente</span>`}
-        </div>`).join("")}` : ""}`,
+          <button class="center gap-10 grow" data-baixar-doc="${dd.id}" style="min-width:0;text-align:left" title="Baixar">
+            <span class="doc-ico ${dd.tipo}">${dd.tipo.toUpperCase()}</span>
+            <span class="grow" style="min-width:0"><span class="ell" style="display:block;font-size:13px">${esc(dd.nome)}</span>
+            <span class="t-xs t-muted">${esc(dd.cat)} · ${esc(dd.tam)} · ${fmtData(dd.data)}</span></span>
+          </button>
+          ${dd.cat==="Contratos" ? (dd.assinado?`<span class="badge ok">Assinado</span>`:`<span class="badge warn">Pendente</span>`) : ""}
+          <button class="mini-btn danger" data-excluir-doc-forn="${dd.id}" title="Excluir">${ico("trash")}</button>
+        </div>`).join("")
+        : `<p class="t-sm t-muted" style="padding:6px 0">Nenhum documento anexado ainda.</p>`}`,
     rodape:`<button class="btn btn-danger" data-excluir>Excluir</button>
             <div class="grow"></div>
             <button class="btn" data-fechar>Fechar</button>
             <button class="btn" data-pagamento>${ico("plus")}Pagamento</button>
             <button class="btn btn-primary" data-editar>Editar</button>`,
     aoAbrir(w){
-      w.addEventListener("click", e => {
-        if(e.target.closest("[data-editar]")){ fecharModal(); abrirFormFornecedor(id); }
-        if(e.target.closest("[data-pagamento]")){ fecharModal(); abrirFormPagamento(null, id); }
+      w.addEventListener("click", async e => {
+        if(e.target.closest("[data-editar]")){ fecharModal(); abrirFormFornecedor(id); return; }
+        if(e.target.closest("[data-pagamento]")){ fecharModal(); abrirFormPagamento(null, id); return; }
+        if(e.target.closest("[data-anexar-contrato]")){ abrirFormDocumento("Contratos", id); return; }
+        const bd = e.target.closest("[data-baixar-doc]");
+        if(bd){ baixarArquivo(bd.dataset.baixarDoc); return; }
+        const edoc = e.target.closest("[data-excluir-doc-forn]");
+        if(edoc){
+          const dd = App.data.documentos.find(y => y.id === edoc.dataset.excluirDocForn);
+          await excluirArquivoBlob(dd.id);
+          App.data.documentos = App.data.documentos.filter(y => y.id !== dd.id);
+          salvar(); fecharModal(); abrirFornecedor(id); toast("Documento removido.","ok");
+          return;
+        }
         const cp = e.target.closest("[data-copiar-pix]");
         if(cp){
           if(navigator.clipboard) navigator.clipboard.writeText(cp.dataset.copiarPix).catch(()=>{});
@@ -574,17 +592,7 @@ POS_RENDER.financeiro = function(){
     if(v){ App.filtros.financeiro.vista = v.dataset.fvista; render(); return; }
     if(e.target.closest("[data-novo-pag]")){ abrirFormPagamento(); return; }
     const pg = e.target.closest("[data-pagar]");
-    if(pg){
-      const p = App.data.pagamentos.find(x => x.id === pg.dataset.pagar);
-      const f = fornecedor(p.fornecedor);
-      confirmar("Confirmar pagamento",
-        `Registrar o pagamento de <strong>${moneyF(p.valor)}</strong> para ${esc(f?f.nome:"—")} (${esc(p.desc)})?`, () => {
-          p.status = "pago";
-          if(f) f.pago = Math.min(f.valor, f.pago + p.valor);
-          salvar(); render(); toast("Pagamento registrado.","ok");
-        }, "Registrar pagamento");
-      return;
-    }
+    if(pg){ abrirConfirmarPagamento(pg.dataset.pagar); return; }
     const ed = e.target.closest("[data-editar-pag]");
     if(ed){ abrirFormPagamento(ed.dataset.editarPag); return; }
     const ex = e.target.closest("[data-excluir-pag]");
@@ -597,6 +605,48 @@ POS_RENDER.financeiro = function(){
     }
   });
 };
+
+function abrirConfirmarPagamento(pagId){
+  const p = App.data.pagamentos.find(x => x.id === pagId); if(!p) return;
+  const f = fornecedor(p.fornecedor);
+  modal({
+    titulo:"Confirmar pagamento", sub:`${esc(f?f.nome:"—")} · ${esc(p.desc)}`, tamanho:"narrow",
+    corpo:`
+      <div class="mb-16" style="padding:13px 15px;background:var(--surface-2);border-radius:10px">
+        <div class="t-xs t-muted">Valor</div>
+        <div class="num" style="font-size:24px">${moneyF(p.valor)}</div>
+      </div>
+      ${f && f.pixChave ? `
+      <div class="mb-16 between" style="padding:11px 13px;background:var(--gold-wash);border-radius:10px">
+        <span style="font-size:13px;word-break:break-all">${ico("info")} Pix: ${esc(f.pixChave)}</span>
+        <button class="btn btn-sm" data-copiar-pix-pag="${esc(f.pixChave)}">${ico("copy")}Copiar</button>
+      </div>` : ""}
+      <div class="field"><label>Comprovante (opcional)</label>
+        <input class="input" type="file" id="cp-arquivo" accept="image/*,.pdf" style="padding:8px 10px;height:auto">
+        <span class="hint">Foto ou PDF do comprovante — fica anexado a este pagamento e ao fornecedor.</span></div>`,
+    rodape:`<button class="btn" data-fechar>Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-pag">Registrar pagamento</button>`,
+    aoAbrir(w){
+      const cp = w.querySelector("[data-copiar-pix-pag]");
+      if(cp) cp.onclick = () => {
+        if(navigator.clipboard) navigator.clipboard.writeText(cp.dataset.copiarPixPag).catch(()=>{});
+        toast("Chave Pix copiada.","ok");
+      };
+      w.querySelector("#btn-confirmar-pag").onclick = async () => {
+        const arq = w.querySelector("#cp-arquivo").files[0];
+        const btn = w.querySelector("#btn-confirmar-pag");
+        btn.disabled = true;
+        p.status = "pago";
+        if(f) f.pago = Math.min(f.valor, f.pago + p.valor);
+        if(arq){
+          await anexarArquivo(arq, { cat:"Comprovantes", forn:p.fornecedor, pagamento:p.id, nome:`Comprovante — ${p.desc}` });
+        }
+        salvar(); fecharModal(); render();
+        toast(arq ? "Pagamento registrado com o comprovante anexado." : "Pagamento registrado.","ok");
+      };
+    }
+  });
+}
 
 function abrirFormPagamento(id, fornId){
   const p = id ? App.data.pagamentos.find(x => x.id === id) : null;
@@ -1130,6 +1180,7 @@ POS_RENDER.documentos = function(){
       const arq = e.dataTransfer.files[0];
       if(arq) registrarArquivo(arq);
     });
+    dz.addEventListener("click", () => { const cat = App.filtros.documentos.cat === "todas" ? "" : App.filtros.documentos.cat; abrirFormDocumento(cat); });
   }
 
   v.addEventListener("click", e => {
@@ -1137,11 +1188,12 @@ POS_RENDER.documentos = function(){
     if(c){ App.filtros.documentos.cat = c.dataset.dcat; render(); return; }
     if(e.target.closest("[data-upload]")){ abrirFormDocumento(); return; }
     const bx = e.target.closest("[data-baixar]");
-    if(bx){ toast("Este é um arquivo de demonstração — o download não está disponível.","info"); return; }
+    if(bx){ baixarArquivo(bx.dataset.baixar); return; }
     const ex = e.target.closest("[data-excluir-doc]");
     if(ex){
       const x = App.data.documentos.find(y => y.id === ex.dataset.excluirDoc);
-      confirmar("Excluir documento", `Remover <strong>${esc(x.nome)}</strong>?`, () => {
+      confirmar("Excluir documento", `Remover <strong>${esc(x.nome)}</strong>? O arquivo também será apagado do seu navegador.`, async () => {
+        await excluirArquivoBlob(x.id);
         App.data.documentos = App.data.documentos.filter(y => y.id !== x.id);
         salvar(); render(); toast("Documento removido.","ok");
       }, "Excluir");
@@ -1158,33 +1210,26 @@ POS_RENDER.documentos = function(){
   });
 };
 
-function registrarArquivo(arq){
-  const ext = (arq.name.split(".").pop()||"").toLowerCase();
-  const tipo = ["jpg","jpeg","png","gif","webp"].includes(ext) ? "img"
-             : ["xls","xlsx","csv"].includes(ext) ? "xls"
-             : ["doc","docx"].includes(ext) ? "doc" : "pdf";
-  App.data.documentos.unshift({
-    id:uid("d"), nome:arq.name, cat:App.filtros.documentos.cat === "todas" ? "Outros" : App.filtros.documentos.cat,
-    tipo, tam:(arq.size/1024/1024 >= 1 ? (arq.size/1024/1024).toFixed(1)+" MB" : Math.round(arq.size/1024)+" KB"),
-    data:new Date().toISOString().slice(0,10), forn:"", assinado:false
-  });
-  salvar(); render(); toast("Arquivo adicionado.","ok");
+async function registrarArquivo(arq){
+  const cat = App.filtros.documentos.cat === "todas" ? "Outros" : App.filtros.documentos.cat;
+  await anexarArquivo(arq, { cat });
+  render(); toast("Arquivo adicionado.","ok");
 }
 
-function abrirFormDocumento(){
+function abrirFormDocumento(catPadrao, fornPadrao){
   modal({
     titulo:"Enviar arquivo", sub:"Guarde contratos, comprovantes e orçamentos.", tamanho:"narrow",
     corpo:`<form id="form-doc" class="grid" style="gap:16px">
       <div class="field"><label>Arquivo</label>
         <input class="input" type="file" id="arquivo-doc" style="padding:8px 10px;height:auto">
-        <span class="hint">Nesta demonstração o arquivo não é enviado a nenhum servidor — apenas o registro fica salvo no seu navegador.</span></div>
+        <span class="hint">O arquivo fica guardado neste navegador — não é enviado para nenhum servidor.</span></div>
       <div class="field"><label>Nome</label>
         <input class="input" name="nome" placeholder="Ex.: Contrato — Buffet La Maison.pdf"></div>
       <div class="field"><label>Categoria</label>
-        <select class="select" name="cat">${CAT_DOC.map(c => `<option>${esc(c)}</option>`).join("")}</select></div>
+        <select class="select" name="cat">${CAT_DOC.map(c => `<option ${catPadrao===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
       <div class="field"><label>Fornecedor (opcional)</label>
         <select class="select" name="forn"><option value="">Nenhum</option>
-          ${App.data.fornecedores.map(f => `<option value="${f.id}">${esc(f.nome)}</option>`).join("")}</select></div>
+          ${App.data.fornecedores.map(f => `<option value="${f.id}" ${fornPadrao===f.id?"selected":""}>${esc(f.nome)}</option>`).join("")}</select></div>
     </form>`,
     rodape:`<button class="btn" data-fechar>Cancelar</button>
             <button class="btn btn-primary" id="salvar-doc">Adicionar</button>`,
@@ -1193,21 +1238,17 @@ function abrirFormDocumento(){
       inpArq.onchange = () => {
         if(inpArq.files[0]) w.querySelector("[name=nome]").value = inpArq.files[0].name;
       };
-      w.querySelector("#salvar-doc").onclick = () => {
+      w.querySelector("#salvar-doc").onclick = async () => {
         const fd = new FormData(w.querySelector("#form-doc"));
         const arq = inpArq.files[0];
         const nome = String(fd.get("nome")||"").trim() || (arq ? arq.name : "");
         if(!nome){ toast("Escolha um arquivo ou informe um nome.","err"); return; }
-        const ext = (nome.split(".").pop()||"").toLowerCase();
-        const tipo = ["jpg","jpeg","png","gif","webp"].includes(ext) ? "img"
-                   : ["xls","xlsx","csv"].includes(ext) ? "xls"
-                   : ["doc","docx"].includes(ext) ? "doc" : "pdf";
-        App.data.documentos.unshift({
-          id:uid("d"), nome, cat:fd.get("cat"), tipo,
-          tam: arq ? (arq.size/1024/1024 >= 1 ? (arq.size/1024/1024).toFixed(1)+" MB" : Math.round(arq.size/1024)+" KB") : "—",
-          data:new Date().toISOString().slice(0,10), forn:fd.get("forn")||"", assinado:false
-        });
-        salvar(); fecharModal(); render(); toast("Documento adicionado.","ok");
+        if(!arq){ toast("Escolha um arquivo para enviar.","err"); return; }
+        const fornId = fd.get("forn")||"";
+        await anexarArquivo(arq, { nome, cat:fd.get("cat"), forn:fornId });
+        fecharModal();
+        if(fornId){ abrirFornecedor(fornId); } else { render(); }
+        toast("Documento adicionado.","ok");
       };
     }
   });
