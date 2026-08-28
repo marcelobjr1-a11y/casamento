@@ -41,6 +41,13 @@ Tudo é salvo **no seu próprio navegador** (localStorage). Nada é enviado para
 - Para voltar ao exemplo original: **Configurações → Restaurar dados de exemplo**
 - Se você limpar os dados do navegador, o sistema volta ao exemplo
 
+⚠️ **Contratos e comprovantes anexados** (em Fornecedores e Documentos)
+também ficam só neste navegador/computador — não sincronizam entre
+dispositivos nem vão para a nuvem. Se você usa o Ateliê em mais de um
+computador, anexe os arquivos sempre no mesmo. Vale a pena baixar uma
+cópia dos mais importantes de vez em quando (botão de baixar em cada
+documento).
+
 ## Site para os convidados
 
 Na pasta `convite/` tem um site separado para você enviar aos convidados,
