@@ -21,5 +21,5 @@ const EVENTO_PADRAO = {
    passo no LEIA-ME.md. É a mesma conexão usada no Ateliê,
    em Configurações → Site dos convidados.
    ============================================================ */
-const SUPABASE_URL = "";
-const SUPABASE_KEY = "";
+const SUPABASE_URL = "https://yepknqiqawhstndbcjws.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Pmd5xWUYNJj5zxddHlLXkQ_KIhMVXqK";
