@@ -254,6 +254,7 @@ function metricas(){
   const pendentes   = conv.filter(c => c.rsvp === "pendente");
   const recusados   = conv.filter(c => c.rsvp === "recusado");
   const acomp = confirmados.reduce((a,c) => a + (c.acompanhantes||0), 0);
+  const acompTotal = conv.reduce((a,c) => a + (c.acompanhantes||0), 0);
 
   const contratados = d.fornecedores.filter(f => f.status === "Contratado" || f.status === "Concluído");
   const valorContratado = contratados.reduce((a,f) => a + f.valor, 0);
@@ -270,8 +271,9 @@ function metricas(){
   const marcosOk = d.marcos.filter(m => m.ok).length;
 
   return {
-    total: conv.length, confirmados, pendentes, recusados, acomp,
+    total: conv.length, confirmados, pendentes, recusados, acomp, acompTotal,
     pessoas: confirmados.length + acomp,
+    totalGeral: conv.length + acompTotal,
     contratados, valorContratado, valorPago, valorRestante,
     orcamento: d.casal.orcamento,
     aberto, venc7, vencidos, atrasadas,
@@ -701,7 +703,7 @@ async function importarRespostasSite(manual){
         App.data.convidados.unshift({
           id: uid("c"), origemSiteId: l.id,
           nome: l.nome, grupo: "site", tipo: "adulto",
-          telefone: l.telefone || "", email: l.email || "",
+          telefone: l.telefone || "",
           acompanhantes: Math.max(0, (l.quantidade_pessoas || 1) - 1),
           rsvp: l.status === "confirmado" ? "confirmado" : "recusado",
           mesa: null, restricao: l.restricao || "", obs: partes.join(" · ")

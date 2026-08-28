@@ -56,7 +56,7 @@ VIEWS.dashboard = function(){
   </div>
 
   <div class="grid g-4 mb-20">
-    ${cardStat("users","", "Convidados", `${m.confirmados.length}<small> / ${m.total}</small>`, "confirmados", m.confirmados.length, m.total, "ok", "convidados")}
+    ${cardStat("users","", "Convidados", `${m.confirmados.length + m.acomp}<small> / ${m.totalGeral}</small>`, m.acompTotal ? `confirmados · inclui acompanhantes` : "confirmados", m.confirmados.length + m.acomp, m.totalGeral, "ok", "convidados")}
     ${cardStat("dollar","g4","Orçamento", money(m.valorContratado), `de ${money(m.orcamento)} previstos`, m.valorContratado, m.orcamento, "", "financeiro")}
     ${cardStat("briefcase","g3","Fornecedores", m.contratados.length, "contratados", m.contratados.length, d.fornecedores.length, "", "fornecedores",
         `<div class="avatar-stack">${m.contratados.slice(0,4).map(f => avatarHTML(f.contato, "sm", f.id)).join("")}
@@ -343,7 +343,7 @@ VIEWS.convidados = function(){
   <div class="page-head">
     <div>
       <h1 class="page-title">Convidados</h1>
-      <p class="page-sub"><b>${m.confirmados.length}</b> de ${m.total} confirmaram presença${m.acomp ? ` · ${m.acomp} acompanhantes` : ""}.</p>
+      <p class="page-sub"><b>${m.confirmados.length + m.acomp}</b> de ${m.totalGeral} pessoas confirmadas${m.acompTotal ? ` · inclui ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : ""}.</p>
     </div>
     <div class="page-actions">
       <button class="btn" data-exportar>${ico("download")}Exportar CSV</button>
@@ -353,8 +353,8 @@ VIEWS.convidados = function(){
   </div>
 
   <div class="grid g-4 mb-20">
-    ${miniStat("Convidados", m.total, "pessoas na lista", "users")}
-    ${miniStat("Confirmados", m.confirmados.length, pct(m.confirmados.length,m.total)+"% da lista", "checkCircle","g2")}
+    ${miniStat("Total de pessoas", m.totalGeral, m.acompTotal ? `${m.total} na lista + ${m.acompTotal} acompanhante${m.acompTotal>1?"s":""}` : "pessoas na lista", "users")}
+    ${miniStat("Confirmados", m.confirmados.length + m.acomp, m.acomp ? `${m.confirmados.length} + ${m.acomp} acompanhante${m.acomp>1?"s":""}` : pct(m.confirmados.length,m.total)+"% da lista", "checkCircle","g2")}
     ${miniStat("Pendentes", m.pendentes.length, "aguardando resposta", "clock","g4")}
     ${miniStat("Recusados", m.recusados.length, "não poderão ir", "x","g3")}
   </div>
@@ -364,7 +364,7 @@ VIEWS.convidados = function(){
       <div class="between wrap gap-12 mb-16">
         <div class="input-ico" style="max-width:320px;flex:1;min-width:200px">
           ${ico("search")}
-          <input class="input" id="busca-conv" placeholder="Buscar por nome, telefone ou e-mail…" value="${esc(f.busca)}">
+          <input class="input" id="busca-conv" placeholder="Buscar por nome ou telefone…" value="${esc(f.busca)}">
         </div>
         <div class="center gap-10 wrap">
           <select class="select" id="filtro-grupo" style="width:auto;min-width:180px">
@@ -393,7 +393,6 @@ VIEWS.convidados = function(){
                 ${avatarHTML(c.nome,"sm",c.id)}
                 <span style="min-width:0">
                   <span class="nm ell" style="display:block">${esc(c.nome)}${c.tipo==="crianca"?` <span class="badge" style="height:18px;font-size:10px">criança</span>`:""}</span>
-                  <span class="t-xs t-muted ell" style="display:block">${esc(c.email)}</span>
                 </span></span></td>
               <td class="t-sm t-ink3 nowrap">${esc(nomeGrupo(c.grupo))}</td>
               <td class="t-sm t-ink3 tnum nowrap">${esc(c.telefone)}</td>
@@ -443,7 +442,7 @@ function filtrarConvidados(){
     if(f.rsvp !== "todos" && c.rsvp !== f.rsvp) return false;
     if(f.grupo === "criancas"){ if(c.tipo !== "crianca") return false; }
     else if(f.grupo !== "todos" && c.grupo !== f.grupo) return false;
-    if(q && !(c.nome.toLowerCase().includes(q) || c.telefone.includes(q) || c.email.toLowerCase().includes(q))) return false;
+    if(q && !(c.nome.toLowerCase().includes(q) || c.telefone.includes(q))) return false;
     return true;
   });
 }
@@ -511,10 +510,10 @@ POS_RENDER.convidados = function(){
 };
 
 function exportarConvidados(){
-  const linhas = [["Nome","Grupo","Telefone","E-mail","Acompanhantes","RSVP","Mesa","Restrição","Observações"]];
+  const linhas = [["Nome","Grupo","Telefone","Acompanhantes","RSVP","Mesa","Restrição","Observações"]];
   filtrarConvidados().forEach(c => {
     const mesa = App.data.mesas.find(x => x.id === c.mesa);
-    linhas.push([c.nome, nomeGrupo(c.grupo), c.telefone, c.email, c.acompanhantes, c.rsvp, mesa?mesa.nome:"", c.restricao, c.obs]);
+    linhas.push([c.nome, nomeGrupo(c.grupo), c.telefone, c.acompanhantes, c.rsvp, mesa?mesa.nome:"", c.restricao, c.obs]);
   });
   const csv = linhas.map(l => l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
   const url = URL.createObjectURL(new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8" }));
@@ -567,8 +566,7 @@ function abrirConvidado(id){
       <div class="center gap-16 mb-20">
         ${avatarHTML(c.nome,"xl",c.id)}
         <div>${badgeRSVP(c.rsvp)}
-          <div class="t-sm t-muted mt-8">${esc(c.email)}</div>
-          <div class="t-sm t-muted">${esc(c.telefone)}</div>
+          <div class="t-sm t-muted mt-8">${esc(c.telefone)}</div>
         </div>
       </div>
       <div class="grid g-2" style="gap:12px">
@@ -623,8 +621,6 @@ function abrirFormConvidado(id){
         <input class="input" name="nome" required value="${c?esc(c.nome):""}" placeholder="Ex.: Maria Helena Souza"></div>
       <div class="field"><label>Telefone</label>
         <input class="input" name="telefone" value="${c?esc(c.telefone):""}" placeholder="(11) 99999-0000"></div>
-      <div class="field"><label>E-mail</label>
-        <input class="input" name="email" type="email" value="${c?esc(c.email):""}" placeholder="nome@email.com"></div>
       <div class="field"><label>Grupo</label>
         <select class="select" name="grupo">
           ${GRUPOS.map(g => `<option value="${g.id}" ${c&&c.grupo===g.id?"selected":""}>${esc(g.nome)}</option>`).join("")}
@@ -657,7 +653,7 @@ function abrirFormConvidado(id){
         const nome = String(fd.get("nome")||"").trim();
         if(!nome){ toast("Informe o nome do convidado.","err"); return; }
         const dados = {
-          nome, telefone:fd.get("telefone")||"", email:fd.get("email")||"",
+          nome, telefone:fd.get("telefone")||"",
           grupo:fd.get("grupo"), tipo:fd.get("tipo"),
           acompanhantes:Number(fd.get("acompanhantes"))||0,
           rsvp:fd.get("rsvp"), restricao:fd.get("restricao")||"",
