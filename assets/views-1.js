@@ -752,6 +752,174 @@ function abrirFormConvidado(id){
 /* =========================================================
    RSVP
    ========================================================= */
+/* =========================================================
+   PADRINHOS
+   ========================================================= */
+VIEWS.padrinhos = function(){
+  const d = App.data;
+  const padrinhos = d.convidados.filter(c => c.grupo === "padrinhos");
+  const daNoiva = padrinhos.filter(c => c.ladoPadrinho === "noiva");
+  const doNoivo = padrinhos.filter(c => c.ladoPadrinho === "noivo");
+  const confirmados = padrinhos.filter(c => c.rsvp === "confirmado").length;
+
+  return `
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Padrinhos</h1>
+      <p class="page-sub"><b>${padrinhos.length}</b> padrinhos e madrinhas · ${confirmados} confirmaram presença.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>
+    </div>
+  </div>
+
+  <div class="grid g-4 mb-20">
+    ${miniStat("Total", padrinhos.length, "padrinhos e madrinhas", "ring")}
+    ${miniStat("Confirmados", confirmados, pct(confirmados,padrinhos.length)+"% já confirmaram", "checkCircle","g2")}
+    ${miniStat("Da noiva", daNoiva.length, "no lado dela", "heart","g4")}
+    ${miniStat("Do noivo", doNoivo.length, "no lado dele", "heart","g3")}
+  </div>
+
+  ${padrinhos.length ? `
+  <div class="grid g-3">
+    ${padrinhos.map(c => `
+      <div class="card card-pad" data-padrinho="${c.id}">
+        <div class="between" style="align-items:flex-start">
+          <div class="center gap-12" style="min-width:0">
+            ${avatarHTML(c.nome,"lg",c.id)}
+            <div style="min-width:0">
+              <div class="ell" style="font-size:14.5px;font-weight:550">${esc(c.nome)}</div>
+              <div class="t-xs t-muted">${esc(c.papelPadrinho || "Padrinho")}${c.ladoPadrinho ? ` · lado ${c.ladoPadrinho === "noiva" ? "dela" : "dele"}` : ""}</div>
+            </div>
+          </div>
+          ${badgeRSVP(c.rsvp)}
+        </div>
+        <div class="sep" style="margin:14px 0"></div>
+        ${c.telefone ? `<div class="t-xs t-muted center gap-6 mb-12">${ico("phone")}${esc(c.telefone)}</div>` : `<div class="t-xs t-muted mb-12">Sem telefone cadastrado</div>`}
+        ${c.obs ? `<p class="t-xs t-ink3 mb-12" style="line-height:1.5">${esc(c.obs)}</p>` : ""}
+        <div class="center gap-8">
+          ${c.telefone ? `<button class="btn btn-sm" data-whatsapp-padrinho="${c.id}">${ico("send")}WhatsApp</button>` : ""}
+          <button class="btn btn-sm" data-editar-padrinho="${c.id}">${ico("edit")}Editar</button>
+          <button class="btn btn-sm btn-danger" data-remover-padrinho="${c.id}" title="Remover da lista de padrinhos">${ico("x")}</button>
+        </div>
+      </div>`).join("")}
+  </div>`
+  : `<div class="card">${vazio("ring","Nenhum padrinho ainda","Adicione quem vai compor o cortejo — pode ser alguém já convidado ou uma pessoa nova.",
+      `<button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>`)}</div>`}`;
+};
+
+POS_RENDER.padrinhos = function(){
+  $("#view").addEventListener("click", e => {
+    if(e.target.closest("[data-novo-padrinho]")){ abrirFormPadrinho(); return; }
+    const ed = e.target.closest("[data-editar-padrinho]");
+    if(ed){ abrirFormPadrinho(ed.dataset.editarPadrinho); return; }
+    const wa = e.target.closest("[data-whatsapp-padrinho]");
+    if(wa){
+      const c = App.data.convidados.find(x => x.id === wa.dataset.whatsappPadrinho);
+      abrirWhatsApp(c.telefone, "");
+      return;
+    }
+    const rm = e.target.closest("[data-remover-padrinho]");
+    if(rm){
+      const c = App.data.convidados.find(x => x.id === rm.dataset.removerPadrinho);
+      confirmar("Remover da lista de padrinhos",
+        `${esc(c.nome)} continua na lista de convidados, só sai do cortejo. Confirmar?`, () => {
+          c.grupo = c.ladoPadrinho === "noivo" ? "amigos-noivo" : "amigos-noiva";
+          c.papelPadrinho = ""; c.ladoPadrinho = "";
+          salvar(); render(); toast("Removido dos padrinhos.","ok");
+        }, "Remover");
+      return;
+    }
+    const card = e.target.closest("[data-padrinho]");
+    if(card && !e.target.closest("button")) abrirConvidado(card.dataset.padrinho);
+  });
+};
+
+function abrirFormPadrinho(id){
+  const c = id ? App.data.convidados.find(x => x.id === id) : null;
+  const outrosConvidados = App.data.convidados.filter(x => x.grupo !== "padrinhos");
+  modal({
+    titulo: c ? "Editar padrinho" : "Adicionar padrinho",
+    sub: c ? esc(c.nome) : "Escolha alguém já convidado ou cadastre uma pessoa nova.",
+    corpo: `<form id="form-padrinho" class="form-grid">
+      ${!c ? `<div class="field full"><label>Convidado</label>
+        <select class="select" id="pad-existente">
+          <option value="">— Nova pessoa —</option>
+          ${outrosConvidados.map(g => `<option value="${g.id}">${esc(g.nome)} — ${esc(nomeGrupo(g.grupo))}</option>`).join("")}
+        </select></div>` : ""}
+      <div class="field full" id="pad-campo-nome"><label>Nome completo *</label>
+        <input class="input" name="nome" required value="${c?esc(c.nome):""}" placeholder="Ex.: Camila Andrade"></div>
+      <div class="field" id="pad-campo-tel"><label>Telefone</label>
+        <input class="input" name="telefone" value="${c?esc(c.telefone):""}" placeholder="(11) 99999-0000"></div>
+      <div class="field"><label>Papel</label>
+        <input class="input" name="papel" list="lista-papeis" value="${c?esc(c.papelPadrinho):""}" placeholder="Ex.: Padrinho, Madrinha, Pajem…">
+        <datalist id="lista-papeis">
+          <option value="Padrinho"><option value="Madrinha"><option value="Dama de honra">
+          <option value="Pajem"><option value="Melhor amigo"><option value="Testemunha">
+        </datalist></div>
+      <div class="field full"><label>Lado do casal</label>
+        <select class="select" name="lado">
+          <option value="noiva" ${c&&c.ladoPadrinho==="noiva"?"selected":""}>Da noiva</option>
+          <option value="noivo" ${c&&c.ladoPadrinho==="noivo"?"selected":""}>Do noivo</option>
+        </select></div>
+      <div class="field full"><label>Observações</label>
+        <textarea class="textarea" name="obs" placeholder="Ex.: vai discursar, leva as alianças…">${c?esc(c.obs):""}</textarea></div>
+    </form>`,
+    rodape: `${c?`<button class="btn btn-danger" data-remover-form-padrinho>Remover dos padrinhos</button><div class="grow"></div>`:""}
+             <button class="btn" data-fechar>Cancelar</button>
+             <button class="btn btn-primary" id="salvar-padrinho">${c?"Salvar":"Adicionar"}</button>`,
+    aoAbrir(w){
+      const sel = w.querySelector("#pad-existente");
+      if(sel) sel.addEventListener("change", () => {
+        const g = App.data.convidados.find(x => x.id === sel.value);
+        const campoNome = w.querySelector("#pad-campo-nome"), campoTel = w.querySelector("#pad-campo-tel");
+        if(g){
+          campoNome.style.display = "none"; campoTel.style.display = "none";
+          w.querySelector("[name=nome]").value = g.nome;
+          w.querySelector("[name=telefone]").value = g.telefone;
+        } else {
+          campoNome.style.display = ""; campoTel.style.display = "";
+          w.querySelector("[name=nome]").value = ""; w.querySelector("[name=telefone]").value = "";
+        }
+      });
+      w.querySelector("#salvar-padrinho").onclick = () => {
+        const fd = new FormData(w.querySelector("#form-padrinho"));
+        const existenteId = sel ? sel.value : "";
+        const nome = String(fd.get("nome")||"").trim();
+        if(!existenteId && !nome){ toast("Informe o nome ou escolha um convidado já cadastrado.","err"); return; }
+        const papel = fd.get("papel") || "";
+        const lado = fd.get("lado");
+        const obs = fd.get("obs") || "";
+        if(c){
+          c.papelPadrinho = papel; c.ladoPadrinho = lado; c.obs = obs;
+          c.telefone = fd.get("telefone") || c.telefone;
+        } else if(existenteId){
+          const g = App.data.convidados.find(x => x.id === existenteId);
+          g.grupo = "padrinhos"; g.papelPadrinho = papel; g.ladoPadrinho = lado; g.obs = obs;
+        } else {
+          App.data.convidados.unshift({
+            id:uid("c"), nome, grupo:"padrinhos", faixa:"adulto",
+            telefone:fd.get("telefone")||"", acompanhantes:[], rsvp:"pendente",
+            mesa:null, restricao:"", obs, papelPadrinho:papel, ladoPadrinho:lado
+          });
+        }
+        salvar(); fecharModal(); render();
+        toast(c ? "Padrinho atualizado." : "Padrinho adicionado.","ok");
+      };
+      const rmBtn = w.querySelector("[data-remover-form-padrinho]");
+      if(rmBtn) rmBtn.onclick = () => {
+        fecharModal();
+        confirmar("Remover da lista de padrinhos",
+          `${esc(c.nome)} continua na lista de convidados, só sai do cortejo. Confirmar?`, () => {
+            c.grupo = c.ladoPadrinho === "noivo" ? "amigos-noivo" : "amigos-noiva";
+            c.papelPadrinho = ""; c.ladoPadrinho = "";
+            salvar(); render(); toast("Removido dos padrinhos.","ok");
+          }, "Remover");
+      };
+    }
+  });
+}
+
 VIEWS.rsvp = function(){
   const m = metricas();
   const respondido = m.confirmados.length + m.recusados.length;

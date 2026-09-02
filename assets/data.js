@@ -60,7 +60,9 @@ function gerarConvidados(){
         rsvp: "pendente",
         mesa: null,
         restricao: crianca ? "" : pick(rnd, RESTRICOES),
-        obs: ""
+        obs: "",
+        papelPadrinho: g.id === "padrinhos" ? (fem ? "Madrinha" : "Padrinho") : "",
+        ladoPadrinho: g.id === "padrinhos" ? (i % 2 === 0 ? "noiva" : "noivo") : ""
       });
     }
   });

@@ -48,6 +48,8 @@ function carregar(){
             c.acompanhantes = Array.from({ length:n }, () => ({ nome:"", faixa:"adulto" }));
           }
           delete c.tipo;
+          if(c.papelPadrinho === undefined) c.papelPadrinho = "";
+          if(c.ladoPadrinho === undefined) c.ladoPadrinho = "";
         });
         return d;
       }
@@ -228,6 +230,7 @@ const CAT_ICO = {
 const ROTAS = [
   { id:"dashboard",    nome:"Visão geral",  icone:"home" },
   { id:"convidados",   nome:"Convidados",   icone:"users" },
+  { id:"padrinhos",    nome:"Padrinhos",    icone:"ring" },
   { id:"rsvp",         nome:"RSVP",         icone:"mail" },
   { id:"mesas",        nome:"Mesas",        icone:"table" },
   { id:"fornecedores", nome:"Fornecedores", icone:"briefcase" },
@@ -794,13 +797,13 @@ function sidebarHTML(){
     </div>
     <nav class="nav">
       <div class="nav-group eyebrow">Casamento</div>
-      ${ROTAS.slice(0,12).map(r => `
+      ${ROTAS.slice(0,13).map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
           ${badges[r.id] ? `<span class="nav-badge">${badges[r.id]}</span>` : ""}
         </button>`).join("")}
       <div class="nav-group eyebrow">Dia do evento</div>
-      ${ROTAS.slice(12).map(r => `
+      ${ROTAS.slice(13).map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""} ${r.especial?"is-special":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
         </button>`).join("")}
