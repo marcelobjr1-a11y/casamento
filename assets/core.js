@@ -21,38 +21,48 @@ const App = {
 };
 
 /* ---------------- persistência ---------------- */
-function salvar(){
+/* grava só neste aparelho (usado também quando os dados chegam da nuvem) */
+function gravarLocal(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(App.data)); }
   catch(e){ console.warn("Não foi possível salvar localmente.", e); }
+}
+/* toda alteração feita pelo usuário passa por aqui: grava e avisa a nuvem */
+function salvar(){
+  gravarLocal();
+  if(typeof nuvemMarcarSujo === "function") nuvemMarcarSujo();
+}
+/* traz dados de versões antigas (ou vindos da nuvem) para o formato atual */
+function migrarDados(d){
+  const base = dadosIniciais();
+  Object.keys(base).forEach(k => { if(d[k] === undefined) d[k] = base[k]; });
+  if(d.casal && d.casal.fotoCasal === undefined) d.casal.fotoCasal = "assets/casal-sidebar.jpg";
+  if(d.casal && d.casal.supabaseUrl === undefined){
+    d.casal.supabaseUrl = ""; d.casal.supabaseKey = ""; d.casal.supabaseSenha = ""; d.casal.ultimaImportacao = "";
+  }
+  if(d.casal && d.casal.recado === undefined){
+    Object.assign(d.casal, { recado:"", mapaUrl:"", endereco:"", dressCode:"", dressCores:[], dressObs:"",
+      pixChave:"", pixTitular:"", fotoCapa:"", sitePublicadoEm:"" });
+  }
+  if(!GRUPOS.some(g => g.id === "site")) GRUPOS.push({ id:"site", nome:"Confirmados pelo site", qtd:0 });
+  /* faixa etária por pessoa + acompanhantes com nome */
+  (d.convidados || []).forEach(c => {
+    if(c.faixa === undefined) c.faixa = c.tipo === "crianca" ? "crianca07" : "adulto";
+    if(!Array.isArray(c.acompanhantes)){
+      const n = Number(c.acompanhantes) || 0;
+      c.acompanhantes = Array.from({ length:n }, () => ({ nome:"", faixa:"adulto" }));
+    }
+    delete c.tipo;
+    if(c.papelPadrinho === undefined) c.papelPadrinho = "";
+    if(c.ladoPadrinho === undefined) c.ladoPadrinho = "";
+  });
+  return d;
 }
 function carregar(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
     if(raw){
       const d = JSON.parse(raw);
-      if(d && d.versao === 1){
-        if(d.casal && d.casal.fotoCasal === undefined) d.casal.fotoCasal = "assets/casal-sidebar.jpg";
-        if(d.casal && d.casal.supabaseUrl === undefined){
-          d.casal.supabaseUrl = ""; d.casal.supabaseKey = ""; d.casal.supabaseSenha = ""; d.casal.ultimaImportacao = "";
-        }
-        if(d.casal && d.casal.recado === undefined){
-          Object.assign(d.casal, { recado:"", mapaUrl:"", endereco:"", dressCode:"", dressCores:[], dressObs:"",
-            pixChave:"", pixTitular:"", fotoCapa:"", sitePublicadoEm:"" });
-        }
-        if(!GRUPOS.some(g => g.id === "site")) GRUPOS.push({ id:"site", nome:"Confirmados pelo site", qtd:0 });
-        /* faixa etária por pessoa + acompanhantes com nome */
-        (d.convidados || []).forEach(c => {
-          if(c.faixa === undefined) c.faixa = c.tipo === "crianca" ? "crianca07" : "adulto";
-          if(!Array.isArray(c.acompanhantes)){
-            const n = Number(c.acompanhantes) || 0;
-            c.acompanhantes = Array.from({ length:n }, () => ({ nome:"", faixa:"adulto" }));
-          }
-          delete c.tipo;
-          if(c.papelPadrinho === undefined) c.papelPadrinho = "";
-          if(c.ladoPadrinho === undefined) c.ladoPadrinho = "";
-        });
-        return d;
-      }
+      if(d && d.versao === 1) return migrarDados(d);
     }
   }catch(e){ /* dados corrompidos: recomeça */ }
   return dadosIniciais();
@@ -212,6 +222,7 @@ const ICONES = {
   userPlus:'<path d="M15 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="8.5" cy="7" r="3.2"/><path d="M19 8v6M22 11h-6"/>',
   church:'<path d="M12 2.5v5M9.5 5h5"/><path d="M12 7.5 5 12v9h14v-9z"/><path d="M9.5 21v-4.5a2.5 2.5 0 0 1 5 0V21"/>',
   moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+  cloud:'<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 7.97L17 16.5z"/>',
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   upload2:'<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>'
 };
@@ -838,6 +849,7 @@ function topbarHTML(){
     </button>
     <div class="topbar-spacer"></div>
     <button class="btn btn-primary" data-adicionar>${ico("plus")}<span>Adicionar</span></button>
+    ${typeof nuvemBotaoHTML === "function" ? nuvemBotaoHTML() : ""}
     <button class="icon-btn" data-notificacoes aria-label="Notificações">
       ${ico("bell")}${naoLidas ? `<span class="dot">${naoLidas}</span>` : ""}
     </button>
@@ -912,7 +924,7 @@ function menuPerfil(alvo){
     if(e.target.closest("[data-restaurar]")){
       fecharPop();
       confirmar("Restaurar dados de exemplo",
-        "Todas as alterações feitas por você serão apagadas e o sistema voltará ao conteúdo original de demonstração.",
+        "Todas as alterações feitas por você serão apagadas e o sistema voltará ao estado inicial. Se este aparelho estiver conectado à nuvem, isso vale para os outros aparelhos também.",
         restaurarExemplo, "Restaurar");
     }
   });
@@ -946,5 +958,6 @@ function iniciar(){
   lerRota();
   render();
   sincronizarSiteAoAbrir();
+  if(typeof nuvemIniciar === "function") nuvemIniciar();
 }
 document.addEventListener("DOMContentLoaded", iniciar);

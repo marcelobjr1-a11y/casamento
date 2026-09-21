@@ -212,6 +212,52 @@ begin
 end; $$;
 grant execute on function salvar_site_config(text, jsonb) to anon;
 
+
+-- ============================================================
+-- 5) Sincronização do Ateliê entre aparelhos
+--    (a noiva e o noivo veem e editam os mesmos dados)
+-- ============================================================
+create table if not exists atelie_estado (
+  id smallint primary key default 1,
+  dados jsonb not null default '{}'::jsonb,
+  atualizado_em timestamptz not null default now(),
+  constraint atelie_estado_singleton check (id = 1)
+);
+
+alter table atelie_estado enable row level security;
+revoke all on atelie_estado from anon, authenticated;
+
+-- devolve os dados salvos e o carimbo da última alteração (ou null se ainda não há nada)
+create or replace function obter_estado_atelie(p_senha text)
+returns jsonb
+language plpgsql security definer as $$
+declare r record;
+begin
+  perform checar_senha_painel(p_senha);
+  select dados, atualizado_em into r from atelie_estado where id = 1;
+  if not found then return null; end if;
+  return jsonb_build_object('dados', r.dados, 'atualizado_em', r.atualizado_em);
+end; $$;
+grant execute on function obter_estado_atelie(text) to anon;
+
+-- salva os dados; se outra pessoa salvou no meio tempo, recusa (a não ser que p_forcar = true)
+create or replace function salvar_estado_atelie(
+  p_senha text, p_dados jsonb, p_base timestamptz, p_forcar boolean default false
+) returns jsonb
+language plpgsql security definer as $$
+declare atual timestamptz; novo timestamptz := now();
+begin
+  perform checar_senha_painel(p_senha);
+  select atualizado_em into atual from atelie_estado where id = 1;
+  if atual is not null and not coalesce(p_forcar, false) and (p_base is null or atual > p_base) then
+    return jsonb_build_object('ok', false, 'atualizado_em', atual);
+  end if;
+  insert into atelie_estado (id, dados, atualizado_em) values (1, p_dados, novo)
+  on conflict (id) do update set dados = excluded.dados, atualizado_em = novo;
+  return jsonb_build_object('ok', true, 'atualizado_em', novo);
+end; $$;
+grant execute on function salvar_estado_atelie(text, jsonb, timestamptz, boolean) to anon;
+
 -- ============================================================
 -- Pronto! Agora:
 -- 1. Troque 'minha-senha-secreta' (2 lugares acima) por uma senha sua

@@ -1,0 +1,24 @@
+# Chama o banco de dados (Supabase) a cada 3 dias.
+# Projetos gratuitos do Supabase são pausados depois de ~7 dias sem uso;
+# com isso o site dos convidados e o Ateliê nunca ficam fora do ar por falta de visita.
+name: Manter o banco de dados ativo
+
+on:
+  schedule:
+    - cron: "17 12 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o Supabase
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            -X POST "https://yepknqiqawhstndbcjws.supabase.co/rest/v1/rpc/obter_site_config" \
+            -H "Content-Type: application/json" \
+            -H "apikey: sb_publishable_Pmd5xWUYNJj5zxddHlLXkQ_KIhMVXqK" \
+            -H "Authorization: Bearer sb_publishable_Pmd5xWUYNJj5zxddHlLXkQ_KIhMVXqK" \
+            -d '{}'
+          echo
+          echo "Banco de dados respondeu — tudo certo."

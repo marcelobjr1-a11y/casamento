@@ -55,6 +55,8 @@ VIEWS.dashboard = function(){
     </div>
   </div>
 
+  ${typeof nuvemBannerHTML === "function" ? nuvemBannerHTML() : ""}
+
   <div class="grid g-4 mb-20">
     ${cardStat("users","", "Convidados", `${m.confirmados.length + m.acomp}<small> / ${m.totalGeral}</small>`, m.acompTotal ? `confirmados · inclui acompanhantes` : "confirmados", m.confirmados.length + m.acomp, m.totalGeral, "ok", "convidados")}
     ${cardStat("dollar","g4","Orçamento", money(m.valorContratado), `de ${money(m.orcamento)} previstos`, m.valorContratado, m.orcamento, "", "financeiro")}

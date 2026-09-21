@@ -243,7 +243,18 @@ svg{ width:16px; height:16px; flex:0 0 auto; }
 .avatar-stack .avatar:first-child{ margin-left:0; }
 .avatar-more{ width:26px; height:26px; border-radius:99px; background:var(--surface-3); color:var(--ink-3); font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; margin-left:-8px; border:2px solid var(--surface); }
 
-/* ---------- Conteúdo ---------- */
+/* ---------- indicador de sincronização ---------- */
+.nuvem-btn{ position:relative; }
+.nuvem-dot{ position:absolute; right:7px; bottom:7px; width:8px; height:8px; border-radius:99px; border:2px solid var(--bg); background:var(--muted-2); }
+.nuvem-btn[data-estado="ok"] .nuvem-dot{ background:var(--ok); }
+.nuvem-btn[data-estado="pendente"] .nuvem-dot{ background:var(--gold-2); }
+.nuvem-btn[data-estado="erro"] .nuvem-dot{ background:var(--danger); }
+.nuvem-btn[data-estado="desconectado"] .nuvem-dot{ display:none; }
+.nuvem-btn[data-estado="desconectado"] svg{ opacity:.5; }
+.nuvem-btn[data-estado="sincronizando"] .nuvem-dot{ background:var(--gold); animation:pulso 1s ease-in-out infinite; }
+@keyframes pulso{ 0%,100%{ opacity:1; transform:scale(1) } 50%{ opacity:.35; transform:scale(.7) } }
+
+/* ---------- Conteúdo ---------- 
 .view{ flex:1; padding:34px 36px 72px; max-width:1560px; width:100%; }
 .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:26px; flex-wrap:wrap; }
 .page-title{ font-family:var(--serif); font-size:38px; line-height:1.12; }
@@ -291,6 +302,8 @@ svg{ width:16px; height:16px; flex:0 0 auto; }
 .card-body{ padding:18px 24px 22px; }
 .card-foot{ padding:14px 24px; border-top:1px solid var(--line-2); display:flex; align-items:center; justify-content:center; }
 .card-foot.between{ justify-content:space-between; }
+.card-foot{ flex-wrap:wrap; gap:10px; }
+.card-foot .center{ flex-wrap:wrap; }
 
 .grid{ display:grid; gap:18px; }
 .g-4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
@@ -690,6 +703,7 @@ tr:hover .row-actions{ opacity:1; }
   .kanban{ grid-template-columns:1fr; }
   .mood-grid{ columns:2; }
   .form-grid{ grid-template-columns:1fr; }
+  #dash-linha1, #docs-grid, #mesas-grid{ grid-template-columns:minmax(0,1fr) !important; }
   /* acompanhantes: nome e faixa em linhas separadas no celular */
   [data-acomp-linha]{ flex-wrap:wrap; }
   [data-acomp-linha] input{ flex:1 1 100% !important; }

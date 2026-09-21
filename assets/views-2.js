@@ -1907,6 +1907,8 @@ VIEWS.config = function(){
         </div>
       </div>
 
+      ${typeof nuvemCardConfigHTML === "function" ? nuvemCardConfigHTML() : ""}
+
       <div class="card">
         <div class="card-head"><h3>Site dos convidados</h3>
           ${siteConfigurado() ? `<span class="badge ok">Conectado</span>` : `<span class="badge warn">Não conectado</span>`}</div>
@@ -1932,7 +1934,7 @@ VIEWS.config = function(){
             <a class="link" href="../convite/painel.html" target="_blank">${ico("arrowRight")}Abrir painel de respostas</a>
           </span>
           <span class="center gap-8">
-            <button class="btn btn-sm" id="sincronizar-site">${ico("refresh")}Sincronizar agora</button>
+            <button class="btn btn-sm" id="sincronizar-site">${ico("refresh")}Buscar respostas do site</button>
             <button class="btn btn-sm btn-primary" id="salvar-site">Salvar conexão</button>
           </span>
         </div>
@@ -2008,6 +2010,7 @@ POS_RENDER.config = function(){
     c.supabaseKey = String(fd.get("supabaseKey")||"").trim();
     c.supabaseSenha = String(fd.get("supabaseSenha")||"").trim();
     salvar(); render(); toast("Conexão salva.","ok");
+    if(typeof nuvemSincronizar === "function") nuvemSincronizar({ manual:true });
   };
 
   const btnSync = $("#sincronizar-site");

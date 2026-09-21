@@ -33,9 +33,27 @@ Ele abre no navegador e o sistema já vem com o casamento de exemplo (Karina & M
 - `Esc` — fecha qualquer janela aberta
 - Botão **+ Adicionar** no topo — cria qualquer item de qualquer tela
 
+## Usar em mais de um aparelho (a noiva e o noivo)
+
+O Ateliê sincroniza os dados entre computadores e celulares. Em cada aparelho novo:
+
+1. Abra o link do Ateliê — vai aparecer um aviso **"Já usa o Ateliê em outro aparelho?"**
+2. Clique em **Conectar** e digite a **senha do painel** (a mesma do Supabase)
+3. Pronto: os dados aparecem e tudo o que um alterar o outro vê em poucos segundos
+
+O ícone de nuvem no topo mostra o estado: **verde** = sincronizado, **dourado** = enviando,
+**vermelho** = sem conexão com o banco de dados. Se os dois mexerem no mesmo instante, o sistema
+mostra os dois lados e pergunta qual vale.
+
+⚠️ Contratos e comprovantes anexados ainda ficam só no aparelho onde foram enviados.
+
+Para isso funcionar, o script `convite/supabase-setup.sql` precisa ter sido rodado (seção 5).
+Uma rotina do GitHub (`.github/workflows/manter-banco-ativo.yml`) chama o banco a cada 3 dias
+para o Supabase não pausar por falta de uso.
+
 ## Onde ficam os dados
 
-Tudo é salvo **no seu próprio navegador** (localStorage). Nada é enviado para a internet.
+Tudo é salvo **no seu próprio navegador** (localStorage). Com a sincronização ligada (veja acima), uma cópia também fica no seu banco de dados do Supabase, para o outro aparelho enxergar.
 
 - Para guardar uma cópia: **Configurações → Exportar tudo (JSON)**
 - Para voltar ao exemplo original: **Configurações → Restaurar dados de exemplo**
