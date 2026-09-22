@@ -32,6 +32,7 @@ const GRUPOS = [
   { id:"amigos-noivo",nome:"Amigos do noivo",   qtd:32 },
   { id:"padrinhos",   nome:"Padrinhos",         qtd:20 },
   { id:"trabalho",    nome:"Trabalho",          qtd:20 },
+  { id:"igreja",      nome:"Igreja",            qtd:0 },
   { id:"site",        nome:"Confirmados pelo site", qtd:0 }
 ];
 
