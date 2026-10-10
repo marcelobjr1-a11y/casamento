@@ -14,6 +14,7 @@ const App = {
     fornecedores:{ busca:"", cat:"todas", status:"todos", vista:"grade" },
     tarefas:     { busca:"", vista:"lista", resp:"todos", cat:"todas" },
     financeiro:  { vista:"resumo" },
+    padrinhos:   { vista:"cortejo" },
     documentos:  { cat:"todas", busca:"" },
     inspiracoes: { cat:"todas" },
     mesas:       { selecionada:null }

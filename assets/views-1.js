@@ -763,6 +763,8 @@ VIEWS.padrinhos = function(){
   const daNoiva = padrinhos.filter(c => c.ladoPadrinho === "noiva");
   const doNoivo = padrinhos.filter(c => c.ladoPadrinho === "noivo");
   const confirmados = padrinhos.filter(c => c.rsvp === "confirmado").length;
+  const vista = App.filtros.padrinhos.vista;
+  const statusCaixa = (d.caixaPadrinhos && d.caixaPadrinhos.status) || {};
 
   return `
   <div class="page-head">
@@ -771,10 +773,17 @@ VIEWS.padrinhos = function(){
       <p class="page-sub"><b>${padrinhos.length}</b> padrinhos e madrinhas · ${confirmados} confirmaram presença.</p>
     </div>
     <div class="page-actions">
-      <button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>
+      <div class="seg">
+        <button class="${vista==="cortejo"?"active":""}" data-pvista="cortejo">Cortejo</button>
+        <button class="${vista==="caixa"?"active":""}" data-pvista="caixa">Caixa dos padrinhos</button>
+      </div>
+      ${vista === "caixa"
+        ? `<button class="btn btn-primary" data-novo-item-caixa>${ico("plus")}Adicionar item</button>`
+        : `<button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>`}
     </div>
   </div>
 
+  ${vista === "caixa" ? caixaPadrinhosHTML(padrinhos) : `
   <div class="grid g-4 mb-20">
     ${miniStat("Total", padrinhos.length, "padrinhos e madrinhas", "ring")}
     ${miniStat("Confirmados", confirmados, pct(confirmados,padrinhos.length)+"% já confirmaram", "checkCircle","g2")}
@@ -799,6 +808,7 @@ VIEWS.padrinhos = function(){
         <div class="sep" style="margin:14px 0"></div>
         ${c.telefone ? `<div class="t-xs t-muted center gap-6 mb-12">${ico("phone")}${esc(c.telefone)}</div>` : `<div class="t-xs t-muted mb-12">Sem telefone cadastrado</div>`}
         ${c.obs ? `<p class="t-xs t-ink3 mb-12" style="line-height:1.5">${esc(c.obs)}</p>` : ""}
+        ${statusCaixa[c.id] ? `<div class="mb-12">${badgeCaixa(statusCaixa[c.id])}</div>` : ""}
         <div class="center gap-8">
           ${c.telefone ? `<button class="btn btn-sm" data-whatsapp-padrinho="${c.id}">${ico("send")}WhatsApp</button>` : ""}
           <button class="btn btn-sm" data-editar-padrinho="${c.id}">${ico("edit")}Editar</button>
@@ -807,11 +817,182 @@ VIEWS.padrinhos = function(){
       </div>`).join("")}
   </div>`
   : `<div class="card">${vazio("ring","Nenhum padrinho ainda","Adicione quem vai compor o cortejo — pode ser alguém já convidado ou uma pessoa nova.",
-      `<button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>`)}</div>`}`;
+      `<button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>`)}</div>`}`}`;
 };
 
+/* ---------- Caixa dos padrinhos ---------- */
+const CAIXA_SUGESTOES = ["Caneca personalizada","Taça gravada","Mini espumante","Bombons","Cartão com o convite",
+  "Vela aromática","Gravata","Paleta de cores da madrinha","Lenço de lapela","Sabonete artesanal","Pulseira","Laço / fita de cetim"];
+const CAIXA_STATUS = [
+  { id:"",         nome:"A montar" },
+  { id:"montada",  nome:"Montada" },
+  { id:"entregue", nome:"Entregue" }
+];
+
+function caixaDados(){
+  const d = App.data;
+  if(!d.caixaPadrinhos) d.caixaPadrinhos = { itens:[], qtdCaixas:0, status:{} };
+  return d.caixaPadrinhos;
+}
+function badgeCaixa(s){
+  return s === "entregue" ? `<span class="badge ok"><i class="pip"></i>Caixa entregue</span>`
+       : s === "montada"  ? `<span class="badge gold"><i class="pip"></i>Caixa montada</span>` : "";
+}
+
+function caixaPadrinhosHTML(padrinhos){
+  const cx = caixaDados();
+  const nCaixas = cx.qtdCaixas > 0 ? cx.qtdCaixas : padrinhos.length;
+  const custoCaixa = cx.itens.reduce((s,i) => s + (Number(i.preco)||0) * (Number(i.qtd)||1), 0);
+  const comprados = cx.itens.filter(i => i.comprado).length;
+  const montadas = padrinhos.filter(p => cx.status[p.id] === "montada" || cx.status[p.id] === "entregue").length;
+  const entregues = padrinhos.filter(p => cx.status[p.id] === "entregue").length;
+  const jaUsados = cx.itens.map(i => i.nome.toLowerCase());
+  const sugestoes = CAIXA_SUGESTOES.filter(s => !jaUsados.includes(s.toLowerCase()));
+
+  return `
+  <div class="grid g-4 mb-20">
+    ${miniStat("Itens", cx.itens.length, comprados + " já comprados", "gift")}
+    ${miniStat("Custo por caixa", moneyF(custoCaixa), "somando todos os itens", "dollar","g3")}
+    ${miniStat("Total", moneyF(custoCaixa * nCaixas), nCaixas + (nCaixas === 1 ? " caixa" : " caixas"), "card","g4")}
+    ${miniStat("Entregues", entregues + "<small>/" + padrinhos.length + "</small>", montadas + " montadas", "checkCircle","g2")}
+  </div>
+
+  <div class="card mb-20">
+    <div class="card-head"><h3>O que vai na caixa</h3>
+      <span class="t-xs t-muted">Marque cada item quando comprar a quantidade de todas as caixas</span></div>
+    ${cx.itens.length ? `
+    <div class="card-body" style="padding-top:8px">
+      <div class="table-wrap"><table class="tbl">
+        <thead><tr><th style="width:36px"></th><th>Item</th><th class="right">Por caixa</th>
+          <th class="right">Preço un.</th><th class="right">Comprar</th><th class="right">Total</th><th style="width:90px"></th></tr></thead>
+        <tbody>
+          ${cx.itens.map(i => {
+            const q = Number(i.qtd)||1, p = Number(i.preco)||0;
+            return `<tr>
+              <td><button class="check ${i.comprado?"on":""}" data-comprado-item="${i.id}" title="Marcar como comprado">${ico("check")}</button></td>
+              <td><div class="nm" style="font-weight:520${i.comprado?";text-decoration:line-through;color:var(--muted)":""}">${esc(i.nome)}</div>
+                ${i.onde || i.obs ? `<div class="t-xs t-muted">${esc([i.onde, i.obs].filter(Boolean).join(" · "))}</div>` : ""}</td>
+              <td class="right">${q}</td>
+              <td class="right">${p ? moneyF(p) : "—"}</td>
+              <td class="right">${q * nCaixas} un.</td>
+              <td class="right">${p ? moneyF(p * q * nCaixas) : "—"}</td>
+              <td class="right"><span class="center gap-6" style="justify-content:flex-end">
+                <button class="btn btn-sm" data-editar-item="${i.id}" title="Editar">${ico("edit")}</button>
+                <button class="btn btn-sm btn-danger" data-remover-item="${i.id}" title="Remover">${ico("trash")}</button></span></td>
+            </tr>`;}).join("")}
+        </tbody>
+      </table></div>
+    </div>` : vazio("gift","A caixa ainda está vazia","Adicione o que vai dentro — caneca, bombons, cartão com o convite… Toque numa sugestão abaixo para começar.")}
+    ${sugestoes.length ? `
+    <div class="card-body" style="border-top:1px solid var(--line-2)">
+      <div class="t-xs t-muted mb-12">Sugestões — toque para adicionar</div>
+      <div class="chips">${sugestoes.map(s => `<button class="chip" data-sugestao-caixa="${esc(s)}">${ico("plus")}${esc(s)}</button>`).join("")}</div>
+    </div>` : ""}
+    <div class="card-foot between">
+      <label class="center gap-8 t-sm">Quantas caixas
+        <input class="input" id="cx-qtd" type="number" min="0" style="width:80px" value="${cx.qtdCaixas || ""}" placeholder="${padrinhos.length}">
+      </label>
+      <span class="t-xs t-muted">${cx.qtdCaixas > 0 ? "Número definido por vocês" : "Deixe vazio para usar 1 caixa por padrinho (" + padrinhos.length + ")"}</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>Caixa de cada padrinho</h3>
+      <span class="t-xs t-muted">${entregues} de ${padrinhos.length} entregues</span></div>
+    ${padrinhos.length ? `
+    <div class="card-body" style="padding-top:4px">
+      ${padrinhos.map(p => `
+        <div class="between" style="padding:10px 0;border-bottom:1px solid var(--line-2);gap:12px;flex-wrap:wrap">
+          <div class="center gap-12" style="min-width:0">
+            ${avatarHTML(p.nome,"",p.id)}
+            <div style="min-width:0"><div class="ell" style="font-weight:520">${esc(p.nome)}</div>
+              <div class="t-xs t-muted">${esc(p.papelPadrinho || "Padrinho")}</div></div>
+          </div>
+          <div class="seg">
+            ${CAIXA_STATUS.map(s => `<button class="${(cx.status[p.id]||"")===s.id?"active":""}" data-status-caixa="${p.id}" data-valor="${s.id}">${s.nome}</button>`).join("")}
+          </div>
+        </div>`).join("")}
+    </div>`
+    : vazio("ring","Nenhum padrinho ainda","Cadastre os padrinhos na aba Cortejo para acompanhar a entrega das caixas.")}
+  </div>`;
+}
+
+function abrirFormItemCaixa(id, nomeSugerido){
+  const cx = caixaDados();
+  const i = id ? cx.itens.find(x => x.id === id) : null;
+  modal({
+    titulo: i ? "Editar item" : "Adicionar item à caixa",
+    sub: "O preço é por unidade — o sistema multiplica pelo número de caixas.",
+    corpo: `<form id="form-item-caixa" class="form-grid">
+      <div class="field full"><label>Item *</label>
+        <input class="input" name="nome" required value="${esc(i ? i.nome : (nomeSugerido||""))}" placeholder="Ex.: Caneca personalizada"></div>
+      <div class="field"><label>Quantidade por caixa</label>
+        <input class="input" name="qtd" type="number" min="1" value="${i ? i.qtd : 1}"></div>
+      <div class="field"><label>Preço por unidade (R$)</label>
+        <input class="input" name="preco" type="number" min="0" step="0.01" value="${i && i.preco ? i.preco : ""}" placeholder="0,00"></div>
+      <div class="field full"><label>Onde comprar</label>
+        <input class="input" name="onde" value="${i ? esc(i.onde) : ""}" placeholder="Ex.: Elo7, papelaria do centro, link da loja…"></div>
+      <div class="field full"><label>Observações</label>
+        <textarea class="textarea" name="obs" placeholder="Ex.: cor dourada, personalizar com o nome de cada um…">${i ? esc(i.obs) : ""}</textarea></div>
+    </form>`,
+    rodape: `<button class="btn" data-fechar>Cancelar</button>
+             <button class="btn btn-primary" id="salvar-item-caixa">${i ? "Salvar" : "Adicionar"}</button>`,
+    aoAbrir(w){
+      const salvarItem = () => {
+        const fd = new FormData(w.querySelector("#form-item-caixa"));
+        const nome = String(fd.get("nome")||"").trim();
+        if(!nome){ toast("Dê um nome ao item.","err"); return; }
+        const campos = { nome, qtd: Math.max(1, Number(fd.get("qtd"))||1), preco: Number(fd.get("preco"))||0,
+          onde: String(fd.get("onde")||"").trim(), obs: String(fd.get("obs")||"").trim() };
+        if(i) Object.assign(i, campos);
+        else cx.itens.push({ id:uid("cx"), comprado:false, ...campos });
+        salvar(); fecharModal(); render();
+        toast(i ? "Item atualizado." : "Item adicionado à caixa.","ok");
+      };
+      w.querySelector("#salvar-item-caixa").onclick = salvarItem;
+      w.querySelector("#form-item-caixa").addEventListener("submit", e => { e.preventDefault(); salvarItem(); });
+      const foco = w.querySelector(nomeSugerido ? "[name=preco]" : "[name=nome]");
+      if(foco) setTimeout(() => foco.focus(), 50);
+    }
+  });
+}
+
 POS_RENDER.padrinhos = function(){
+  const qtd = $("#cx-qtd");
+  if(qtd) qtd.addEventListener("change", () => {
+    caixaDados().qtdCaixas = Math.max(0, Math.floor(Number(qtd.value)||0));
+    salvar(); render();
+  });
   $("#view").addEventListener("click", e => {
+    const pv = e.target.closest("[data-pvista]");
+    if(pv){ App.filtros.padrinhos.vista = pv.dataset.pvista; render(); return; }
+    if(e.target.closest("[data-novo-item-caixa]")){ abrirFormItemCaixa(); return; }
+    const sug = e.target.closest("[data-sugestao-caixa]");
+    if(sug){ abrirFormItemCaixa(null, sug.dataset.sugestaoCaixa); return; }
+    const edi = e.target.closest("[data-editar-item]");
+    if(edi){ abrirFormItemCaixa(edi.dataset.editarItem); return; }
+    const comp = e.target.closest("[data-comprado-item]");
+    if(comp){
+      const it = caixaDados().itens.find(x => x.id === comp.dataset.compradoItem);
+      it.comprado = !it.comprado; salvar(); render(); return;
+    }
+    const rmi = e.target.closest("[data-remover-item]");
+    if(rmi){
+      const cx = caixaDados();
+      const it = cx.itens.find(x => x.id === rmi.dataset.removerItem);
+      confirmar("Remover item", `Tirar "${esc(it.nome)}" da caixa dos padrinhos?`, () => {
+        cx.itens = cx.itens.filter(x => x !== it);
+        salvar(); render(); toast("Item removido.","ok");
+      }, "Remover");
+      return;
+    }
+    const st = e.target.closest("[data-status-caixa]");
+    if(st){
+      const cx = caixaDados();
+      if(st.dataset.valor) cx.status[st.dataset.statusCaixa] = st.dataset.valor;
+      else delete cx.status[st.dataset.statusCaixa];
+      salvar(); render(); return;
+    }
     if(e.target.closest("[data-novo-padrinho]")){ abrirFormPadrinho(); return; }
     const ed = e.target.closest("[data-editar-padrinho]");
     if(ed){ abrirFormPadrinho(ed.dataset.editarPadrinho); return; }
