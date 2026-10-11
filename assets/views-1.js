@@ -53,7 +53,6 @@ VIEWS.dashboard = function(){
     </div>
     <div class="page-actions">
       <button class="btn" data-rota="cronograma">${ico("calendar")}Ver cronograma</button>
-      ${cer ? "" : `<button class="btn btn-primary" data-adicionar>${ico("plus")}Adicionar</button>`}
     </div>
   </div>
 
@@ -353,7 +352,6 @@ VIEWS.convidados = function(){
     </div>
     <div class="page-actions">
       <button class="btn" data-exportar>${ico("download")}Exportar CSV</button>
-      ${m.total ? `<button class="btn btn-danger" data-excluir-todos>${ico("trash")}Excluir todos</button>` : ""}
       <button class="btn btn-primary" data-novo-convidado>${ico("userPlus")}Adicionar convidado</button>
     </div>
   </div>
@@ -430,7 +428,8 @@ VIEWS.convidados = function(){
       </table>
     </div>
     <div class="card-foot between">
-      <span class="t-sm t-muted">Mostrando ${(f.pagina-1)*porPag+1}–${Math.min(f.pagina*porPag, lista.length)} de ${lista.length}</span>
+      <span class="center gap-12"><span class="t-sm t-muted">Mostrando ${(f.pagina-1)*porPag+1}–${Math.min(f.pagina*porPag, lista.length)} de ${lista.length}</span>
+        <button class="link" data-excluir-todos style="color:var(--danger)">${ico("trash")}Excluir todos</button></span>
       <span class="center gap-8">
         <button class="btn btn-sm" data-pag="${f.pagina-1}" ${f.pagina<=1?"disabled":""}>${ico("chevronLeft")}Anterior</button>
         <span class="t-sm t-muted tnum">${f.pagina} / ${totalPags}</span>
