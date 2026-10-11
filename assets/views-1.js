@@ -496,6 +496,8 @@ function composicaoPessoasHTML(){
       <div class="comp-num"><b>${r.crianca07 || 0}</b><span>grátis · 0 a 7 anos</span></div>
       <div class="comp-num pagante"><b>${fmtEquiv(r.equivalente)}</b><span>pagantes</span></div>
     </div>`;
+  const equipe = equipeNoSalao();
+  const nFornec = new Set(equipe.map(p => p.forn.id)).size;
   return `
   <div class="card mb-20">
     <div class="card-head"><h3>Estimativa de pessoas</h3>
@@ -503,6 +505,16 @@ function composicaoPessoasHTML(){
     <div class="card-body" style="padding-top:4px">
       ${linha("Estimativa", "todos os convidados, menos quem recusou", est, true)}
       ${linha("Já confirmados", "quem respondeu que vai", conf, false)}
+      <div class="comp-linha">
+        <div class="comp-tit"><div style="font-weight:550;font-size:13.5px">Equipe dos fornecedores</div>
+          <div class="t-xs t-muted">${equipe.length ? `${nFornec} fornecedor${nFornec>1?"es":""} contratado${nFornec>1?"s":""}` : `cadastre em Fornecedores → Editar`}</div></div>
+        <div class="comp-num"><b>${equipe.length}</b><span>pessoas</span></div>
+      </div>
+    </div>
+    <div class="card-foot between wrap gap-12">
+      <span class="t-sm">No salão: <b class="num" style="font-size:18px">${est.total + equipe.length}</b> pessoas
+        <span class="t-muted">— ${est.total} convidados${equipe.length ? ` + ${equipe.length} da equipe dos fornecedores` : ""}</span></span>
+      <button class="btn btn-sm" data-lista-salao>${ico("download")}Lista do salão (CSV)</button>
     </div>
   </div>`;
 }
@@ -612,6 +624,7 @@ POS_RENDER.convidados = function(){
     }
     if(e.target.closest("[data-novo-convidado]")){ abrirFormConvidado(); return; }
     if(e.target.closest("[data-exportar]")){ exportarConvidados(); return; }
+    if(e.target.closest("[data-lista-salao]")){ exportarListaSalao(); return; }
     if(e.target.closest("[data-excluir-todos]")){
       const n = App.data.convidados.length;
       confirmar("Excluir todos os convidados",
@@ -639,6 +652,26 @@ POS_RENDER.convidados = function(){
     if(row) abrirConvidado(row.dataset.conv);
   });
 };
+
+/* todos que estarão no salão: convidados (menos recusados), acompanhantes e equipe dos fornecedores */
+function exportarListaSalao(){
+  const linhas = [["Nome","Tipo","Grupo / fornecedor","Faixa etária","Convite de","RSVP","Mesa"]];
+  App.data.convidados.filter(c => c.rsvp !== "recusado").forEach(c => {
+    const mesa = App.data.mesas.find(x => x.id === c.mesa);
+    pessoasDoConvidado(c).forEach(p => linhas.push([
+      p.nome || "(acompanhante sem nome)", p.titular ? "Convidado" : "Acompanhante", nomeGrupo(c.grupo),
+      nomeFaixa(p.faixa), p.titular ? "—" : c.nome, c.rsvp, mesa ? mesa.nome : ""
+    ]));
+  });
+  equipeNoSalao().forEach(p => linhas.push([
+    p.nome || `(${p.forn.nome} — pessoa ${p.n})`, "Fornecedor", `${p.forn.nome}${p.funcao ? " · " + p.funcao : ""}`, "Adulto", "—", "—", ""
+  ]));
+  const csv = linhas.map(l => l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type:"text/csv;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = "lista-do-salao.csv"; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast(`Lista do salão baixada — ${linhas.length - 1} pessoas.`, "ok");
+}
 
 function exportarConvidados(){
   const linhas = [["Nome","Faixa etária","Convite de","Grupo","Prioridade","Telefone","RSVP","Mesa","Restrição","Observações"]];

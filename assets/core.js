@@ -314,6 +314,15 @@ function resumoPessoas(convidados){
   return r;
 }
 
+/* equipe dos fornecedores que estará no salão (só os contratados contam) */
+function fornecedorNoDia(f){ return f.status === "Contratado" || f.status === "Concluído"; }
+function equipeNoSalao(){
+  const lista = [];
+  App.data.fornecedores.filter(fornecedorNoDia).forEach(f =>
+    (f.equipeDia || []).forEach((p,i) => lista.push({ nome:p.nome || "", funcao:p.funcao || "", forn:f, n:i+1 })));
+  return lista;
+}
+
 /* ---------------- cálculos globais ---------------- */
 function metricas(){
   const d = App.data;

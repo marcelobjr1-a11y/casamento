@@ -15,7 +15,7 @@ VIEWS.fornecedores = function(){
   <div class="page-head">
     <div>
       <h1 class="page-title">Fornecedores</h1>
-      <p class="page-sub"><b>${m.contratados.length}</b> contratados${modoCerimonial() ? "" : ` · ${money(m.valorContratado)} em contratos fechados`}.</p>
+      <p class="page-sub"><b>${m.contratados.length}</b> contratados${modoCerimonial() ? "" : ` · ${money(m.valorContratado)} em contratos fechados`}${equipeNoSalao().length ? ` · <b>${equipeNoSalao().length}</b> pessoas da equipe no salão` : ""}.</p>
     </div>
     <div class="page-actions">
       <div class="seg">
@@ -84,7 +84,7 @@ VIEWS.fornecedores = function(){
             </div>`
           : `<div class="t-sm t-muted" style="line-height:1.5">${esc(x.nota.slice(0,90))}${x.nota.length>90?"…":""}</div>`}
           <div class="between mt-16" style="gap:8px">
-            <span class="center gap-8 t-xs t-muted" style="min-width:0">${x.tel ? `${ico("phone")}<span class="ell">${esc(x.tel)}</span>` : ""}</span>
+            <span class="center gap-8 t-xs t-muted" style="min-width:0">${x.tel ? `${ico("phone")}<span class="ell">${esc(x.tel)}</span>` : ""}${(x.equipeDia||[]).length ? `<span class="dot-sep"></span>${ico("users")}<span>${x.equipeDia.length} no dia</span>` : ""}</span>
             ${contratoForn(x.id) ? `<span class="badge gold" role="button" data-abrir-contrato="${contratoForn(x.id).id}" title="Abrir o contrato" style="cursor:pointer">${ico("file")}Contrato</span>` : ""}
           </div>
         </button>`;
@@ -208,6 +208,12 @@ function abrirFornecedor(id){
       <div class="eyebrow mb-8">Observações</div>
       <p class="t-sm t-ink3" style="line-height:1.65">${esc(x.nota)}</p>
 
+      <div class="sep"></div>
+      <div class="eyebrow mb-8">Equipe no dia (${(x.equipeDia||[]).length} ${(x.equipeDia||[]).length === 1 ? "pessoa" : "pessoas"})</div>
+      ${(x.equipeDia||[]).length ? `<div class="chips">${x.equipeDia.map((p,i) => `<span class="chip" style="cursor:default">${ico("users")}${esc(p.nome || "Pessoa " + (i+1))}${p.funcao ? ` <span class="n">${esc(p.funcao)}</span>` : ""}</span>`).join("")}</div>
+        ${fornecedorNoDia(x) ? "" : `<p class="t-xs t-muted mt-8">Ainda não entra na contagem do salão — só quando o status for Contratado ou Concluído.</p>`}`
+      : `<p class="t-sm t-muted">Ninguém cadastrado. Use Editar para dizer quantas pessoas vêm no dia.</p>`}
+
       ${pags.length ? `<div class="sep"></div>
       <div class="eyebrow mb-8">Pagamentos (${pags.length})</div>
       ${pags.map(p => `
@@ -309,6 +315,16 @@ function abrirFormFornecedor(id){
         <input class="input" name="pixTitular" value="${x?esc(x.pixTitular||""):""}" placeholder="Nome de quem recebe"></div>
       <div class="field full"><label>Observações</label>
         <textarea class="textarea" name="nota" placeholder="O que está incluído, condições, combinados…">${x?esc(x.nota):""}</textarea></div>
+      <div class="field full">
+        <div class="sep" style="margin:4px 0 14px"></div>
+        <div class="between wrap gap-8" style="margin-bottom:8px">
+          <label style="margin:0">Equipe no dia do casamento</label>
+          <span class="center gap-8"><span class="t-xs t-muted">Quantas pessoas</span>
+            <input class="input" type="number" id="fv-eq-qtd" min="0" max="60" style="width:72px;height:32px"></span>
+        </div>
+        <div id="fv-eq-lista"></div>
+        <span class="hint">Fotógrafos, assistentes, garçons, músicos… Entram na contagem do salão quando o status for Contratado ou Concluído.</span>
+      </div>
       <div class="field full"><label>Arquivo do contrato</label>
         <input class="input" type="file" id="fv-contrato" accept=".pdf,image/*,.doc,.docx" style="padding:8px 10px;height:auto">
         <span class="hint">${(() => {
@@ -340,6 +356,37 @@ function abrirFormFornecedor(id){
     rodape:`<button class="btn" data-fechar>Cancelar</button>
             <button class="btn btn-primary" id="salvar-forn">${x?"Salvar alterações":"Cadastrar"}</button>`,
     aoAbrir(w){
+      /* equipe no dia: lista editável em memória */
+      let equipe = x && x.equipeDia ? x.equipeDia.map(p => ({ ...p })) : [];
+      const eqLista = w.querySelector("#fv-eq-lista"), eqQtd = w.querySelector("#fv-eq-qtd");
+      const desenharEquipe = () => {
+        eqQtd.value = equipe.length || "";
+        eqLista.innerHTML = equipe.map((p,i) => `
+          <div class="center gap-8 mb-8" data-acomp-linha="${i}">
+            <span class="t-xs t-muted" style="width:18px;text-align:right;flex:0 0 18px">${i+1}</span>
+            <input class="input" data-eq-nome="${i}" value="${esc(p.nome)}" placeholder="Nome (opcional)" style="flex:1;min-width:0">
+            <input class="input" data-eq-funcao="${i}" value="${esc(p.funcao||"")}" placeholder="Função — ex.: fotógrafo" style="flex:0 0 190px;min-width:0">
+            <button type="button" class="mini-btn danger" data-eq-remover="${i}" title="Remover">${ico("trash")}</button>
+          </div>`).join("") +
+          `<button type="button" class="btn btn-sm" data-eq-add>${ico("plus")}Adicionar pessoa</button>`;
+      };
+      desenharEquipe();
+      eqQtd.addEventListener("change", () => {
+        const n = Math.max(0, Math.min(60, Math.floor(Number(eqQtd.value) || 0)));
+        while(equipe.length < n) equipe.push({ nome:"", funcao:"" });
+        if(equipe.length > n) equipe = equipe.slice(0, n);
+        desenharEquipe();
+      });
+      eqLista.addEventListener("input", e => {
+        const n = e.target.closest("[data-eq-nome]"); if(n){ equipe[+n.dataset.eqNome].nome = n.value; return; }
+        const fu = e.target.closest("[data-eq-funcao]"); if(fu) equipe[+fu.dataset.eqFuncao].funcao = fu.value;
+      });
+      eqLista.addEventListener("click", e => {
+        if(e.target.closest("[data-eq-add]")){ equipe.push({ nome:"", funcao:"" }); desenharEquipe(); const ult = eqLista.querySelector(`[data-eq-nome="${equipe.length-1}"]`); if(ult) ult.focus(); return; }
+        const rm = e.target.closest("[data-eq-remover]");
+        if(rm){ equipe.splice(+rm.dataset.eqRemover, 1); desenharEquipe(); }
+      });
+
       const iValor = w.querySelector("#fv-parcela"), iQtd = w.querySelector("#fv-qtd"), prev = w.querySelector("#fv-preview"), prevT = w.querySelector("#fv-preview-texto");
       const atualizarPreview = () => {
         const v = Number(iValor.value)||0, q = Number(iQtd.value)||0;
@@ -367,7 +414,8 @@ function abrirFormFornecedor(id){
           tel:fd.get("tel")||"", email:fd.get("email")||"",
           valor:Number(fd.get("valor"))||0, pago:Number(fd.get("pago"))||0,
           data:fd.get("data")||"", contrato:!!fd.get("contrato"), nota:fd.get("nota")||"",
-          pixChave:fd.get("pixChave")||"", pixTitular:fd.get("pixTitular")||""
+          pixChave:fd.get("pixChave")||"", pixTitular:fd.get("pixTitular")||"",
+          equipeDia: equipe.map(p => ({ nome:String(p.nome||"").trim(), funcao:String(p.funcao||"").trim() }))
         };
         let alvo;
         if(x){ Object.assign(x, dados); alvo = x; }
