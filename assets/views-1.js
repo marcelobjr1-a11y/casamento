@@ -774,16 +774,19 @@ VIEWS.padrinhos = function(){
     </div>
     <div class="page-actions">
       <div class="seg">
-        <button class="${vista==="cortejo"?"active":""}" data-pvista="cortejo">Cortejo</button>
+        <button class="${vista==="cortejo"?"active":""}" data-pvista="cortejo">Lista</button>
+        <button class="${vista==="entrada"?"active":""}" data-pvista="entrada">Ordem do cortejo</button>
         <button class="${vista==="caixa"?"active":""}" data-pvista="caixa">Caixa dos padrinhos</button>
       </div>
       ${vista === "caixa"
         ? `<button class="btn btn-primary" data-novo-item-caixa>${ico("plus")}Adicionar item</button>`
+        : vista === "entrada"
+        ? `<button class="btn" data-copiar-cortejo>${ico("copy")}Copiar ordem</button>`
         : `<button class="btn btn-primary" data-novo-padrinho>${ico("ring")}Adicionar padrinho</button>`}
     </div>
   </div>
 
-  ${vista === "caixa" ? caixaPadrinhosHTML(padrinhos) : `
+  ${vista === "caixa" ? caixaPadrinhosHTML(padrinhos) : vista === "entrada" ? cortejoHTML(padrinhos) : `
   <div class="grid g-4 mb-20">
     ${miniStat("Total", padrinhos.length, "padrinhos e madrinhas", "ring")}
     ${miniStat("Confirmados", confirmados, pct(confirmados,padrinhos.length)+"% já confirmaram", "checkCircle","g2")}
@@ -957,7 +960,272 @@ function abrirFormItemCaixa(id, nomeSugerido){
   });
 }
 
+/* ---------- Ordem do cortejo ----------
+   Cada entrada tem duas vagas: [pessoa, par]. Uma pessoa é { cid } (convidado)
+   ou { nome } (alguém digitado, ex.: "Pais da noiva"). Vaga vazia = null. */
+const CORTEJO_SUGESTOES = ["Noivo","Pais do noivo","Pais da noiva","Avós","Pajem","Daminha","Florista","Daminha das alianças","Noiva"];
+
+function cortejoDados(){
+  const d = App.data;
+  if(!d.cortejo) d.cortejo = { entradas:[] };
+  const existe = new Set(d.convidados.map(c => c.id));
+  d.cortejo.entradas.forEach(en => {
+    en.vagas = (en.vagas || [null,null]).map(p => p && (p.nome || existe.has(p.cid)) ? p : null);
+    if(!en.vagas[0] && en.vagas[1]) en.vagas = [en.vagas[1], null];
+  });
+  /* remove entradas vazias sem trocar o array (outras funções guardam a referência) */
+  const ents = d.cortejo.entradas;
+  for(let i = ents.length - 1; i >= 0; i--) if(!ents[i].vagas[0] && !ents[i].vagas[1]) ents.splice(i, 1);
+  return d.cortejo;
+}
+function cortejoPosicionados(){
+  const s = new Set();
+  cortejoDados().entradas.forEach(en => en.vagas.forEach(p => { if(p && p.cid) s.add(p.cid); }));
+  return s;
+}
+function cortejoPessoa(p){
+  if(!p) return null;
+  if(p.nome) return { nome:p.nome, papel:"", seed:p.nome };
+  const c = App.data.convidados.find(x => x.id === p.cid);
+  return c ? { nome:c.nome, papel:c.papelPadrinho || nomeGrupo(c.grupo), seed:c.id } : null;
+}
+function cortejoSozinho(p){
+  const pe = cortejoPessoa(p);
+  if(!pe) return "";
+  const txt = (pe.papel + " " + pe.nome).toLowerCase();
+  if(/^(pais|avós|avos|irmãos)/.test(pe.nome.toLowerCase())) return "Entram juntos";
+  return /madrinha|noiva\b|daminha|dama|florista|mãe|avó\b|irmã\b|tia\b/.test(txt) && !/padrinho/.test(txt)
+    ? "Entra sozinha" : "Entra sozinho";
+}
+/* posição antes da entrada da noiva, para que ela fique sempre por último */
+function cortejoPosNova(){
+  const ents = cortejoDados().entradas;
+  const i = ents.findIndex(en => en.vagas[0] && en.vagas[0].nome && /^noiva/i.test(en.vagas[0].nome));
+  return i === -1 ? ents.length : i;
+}
+function cortejoNovaEntrada(pessoa, pos){
+  const onde = pos === undefined ? cortejoPosNova() : pos;
+  const en = { id:uid("en"), vagas:[pessoa, null] };
+  cortejoDados().entradas.splice(onde, 0, en);
+  return en;
+}
+
+function cortejoHTML(padrinhos){
+  const cj = cortejoDados();
+  const pos = cortejoPosicionados();
+  const semPosicao = padrinhos.filter(p => !pos.has(p.id));
+  const emPar = cj.entradas.filter(en => en.vagas[0] && en.vagas[1]).length;
+  const sozinhos = cj.entradas.length - emPar;
+  const usados = cj.entradas.map(en => en.vagas[0] && en.vagas[0].nome ? en.vagas[0].nome.toLowerCase() : "");
+  const sugestoes = CORTEJO_SUGESTOES.filter(s => !usados.includes(s.toLowerCase()));
+
+  const vaga = (en, i) => {
+    const p = en.vagas[i], pe = cortejoPessoa(p);
+    if(!pe) return `<div class="en-slot vazio" data-vaga="${en.id}:${i}">${ico("plus")}<span>${i ? "Par (opcional)" : "Pessoa"}</span></div>`;
+    return `<div class="en-slot" draggable="true" data-vaga="${en.id}:${i}" data-arrastar="${en.id}:${i}">
+      ${avatarHTML(pe.nome,"sm",pe.seed)}
+      <span class="grow" style="min-width:0">
+        <span class="ell" style="display:block;font-size:13px;font-weight:520">${esc(pe.nome)}</span>
+        ${pe.papel ? `<span class="t-xs t-muted ell" style="display:block">${esc(pe.papel)}</span>` : ""}
+      </span>
+      <button class="en-x" data-tirar="${en.id}:${i}" title="Tirar desta entrada">${ico("x")}</button>
+    </div>`;
+  };
+
+  return `
+  <div class="grid g-4 mb-20">
+    ${miniStat("Entradas", cj.entradas.length, "na ordem do cortejo", "list")}
+    ${miniStat("Em par", emPar, emPar === 1 ? "entrada com duas pessoas" : "entradas com duas pessoas", "users","g3")}
+    ${miniStat("Sozinhos", sozinhos, "entram sem par", "heart","g4")}
+    ${miniStat("Sem posição", semPosicao.length, "padrinhos fora do cortejo", "alert", semPosicao.length ? "" : "g2")}
+  </div>
+
+  <div class="grid" style="grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start" id="cortejo-grid">
+    <div class="card">
+      <div class="card-head"><h3>Ordem de entrada</h3>
+        <span class="t-xs t-muted">Arraste as pessoas para formar os pares · use as setas para mudar a ordem</span></div>
+      <div class="card-body">
+        <div class="aisle">
+          <div class="aisle-end">${ico("church")}<span>Porta da igreja · o cortejo começa aqui</span></div>
+          ${cj.entradas.map((en, idx) => {
+            const solo = !en.vagas[1];
+            return `<div class="entrada ${solo?"solo":""}" data-entrada="${en.id}">
+              <span class="en-num">${idx+1}</span>
+              <div class="en-par">${vaga(en,0)}<span class="en-amp">${solo ? "" : "&amp;"}</span>${vaga(en,1)}</div>
+              <div class="en-acoes">
+                ${solo ? `<span class="badge warn">${cortejoSozinho(en.vagas[0])}</span>` : `<span class="badge ok">Em par</span>`}
+                <span class="center gap-6">
+                  <button class="btn btn-sm" data-subir="${en.id}" ${idx===0?"disabled":""} title="Entra antes">↑</button>
+                  <button class="btn btn-sm" data-descer="${en.id}" ${idx===cj.entradas.length-1?"disabled":""} title="Entra depois">↓</button>
+                  <button class="btn btn-sm btn-danger" data-apagar-entrada="${en.id}" title="Apagar entrada">${ico("trash")}</button>
+                </span>
+              </div>
+            </div>`;
+          }).join("")}
+          <div class="entrada-nova" data-nova-entrada>${ico("plus")}<span>${cj.entradas.length ? "Solte aqui ou clique para criar uma nova entrada" : "Arraste um padrinho para cá ou clique para criar a primeira entrada"}</span></div>
+          <div class="aisle-end altar">${ico("heart")}<span>Altar</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card" data-pool-cortejo>
+        <div class="card-head"><h3>Sem posição</h3><span class="badge ${semPosicao.length?"warn":"ok"}">${semPosicao.length}</span></div>
+        <div class="card-body" style="padding-top:10px">
+          ${semPosicao.length ? `<div class="guest-pool">
+            ${semPosicao.map(c => `
+              <div class="pool-item" draggable="true" data-arrastar="pool:${c.id}">
+                ${avatarHTML(c.nome,"sm",c.id)}
+                <span class="grow" style="min-width:0">
+                  <span class="ell" style="display:block;font-size:12.5px;font-weight:480">${esc(c.nome)}</span>
+                  <span class="t-xs t-muted ell" style="display:block">${esc(c.papelPadrinho || "Padrinho")}${c.ladoPadrinho ? ` · lado ${c.ladoPadrinho === "noiva" ? "dela" : "dele"}` : ""}</span>
+                </span>
+              </div>`).join("")}
+          </div>
+          <button class="btn btn-sm mt-8" style="width:100%;justify-content:center" data-formar-pares>${ico("sparkle")}Formar pares automaticamente</button>`
+          : padrinhos.length ? vazio("checkCircle","Todos no cortejo","Todos os padrinhos já têm lugar na ordem de entrada.","")
+          : vazio("ring","Nenhum padrinho ainda","Cadastre os padrinhos na aba Lista.","")}
+        </div>
+      </div>
+      ${sugestoes.length ? `
+      <div class="card">
+        <div class="card-head"><h3>Outras entradas</h3></div>
+        <div class="card-body" style="padding-top:6px">
+          <div class="t-xs t-muted mb-12">Toque para colocar no cortejo</div>
+          <div class="chips">${sugestoes.map(s => `<button class="chip" data-sugestao-cortejo="${esc(s)}">${ico("plus")}${esc(s)}</button>`).join("")}</div>
+        </div>
+      </div>` : ""}
+    </div>
+  </div>`;
+}
+
+/* escolher quem vai numa vaga (clique — funciona também no celular) */
+function abrirEscolherCortejo(alvo){
+  const pos = cortejoPosicionados();
+  const livres = App.data.convidados.filter(c => c.grupo === "padrinhos" && !pos.has(c.id));
+  modal({
+    titulo: alvo ? "Quem entra aqui?" : "Nova entrada no cortejo",
+    sub: "Escolha um padrinho ou escreva um nome.",
+    corpo: `
+      ${livres.length ? `<div class="eyebrow mb-8">Padrinhos sem posição</div>
+        <div class="guest-pool mb-16" style="max-height:300px">
+          ${livres.map(c => `<button class="pool-item" style="width:100%;cursor:pointer;text-align:left" data-escolher="${c.id}">
+            ${avatarHTML(c.nome,"sm",c.id)}
+            <span class="grow" style="min-width:0"><span class="ell" style="display:block;font-size:13px;font-weight:500">${esc(c.nome)}</span>
+            <span class="t-xs t-muted">${esc(c.papelPadrinho || "Padrinho")}</span></span></button>`).join("")}
+        </div>` : ""}
+      <div class="field"><label>${livres.length ? "Ou escreva um nome" : "Nome"}</label>
+        <input class="input" id="cortejo-nome" placeholder="Ex.: Pais da noiva, Pajem Lucas…"></div>`,
+    rodape: `<button class="btn" data-fechar>Cancelar</button>
+             <button class="btn btn-primary" id="cortejo-usar-nome">Adicionar</button>`,
+    aoAbrir(w){
+      const colocar = pessoa => {
+        if(alvo){
+          const [eid, i] = alvo.split(":");
+          const en = cortejoDados().entradas.find(x => x.id === eid);
+          if(en) en.vagas[Number(i)] = pessoa;
+        } else cortejoNovaEntrada(pessoa);
+        salvar(); fecharModal(); render();
+      };
+      w.querySelectorAll("[data-escolher]").forEach(b => b.onclick = () => colocar({ cid:b.dataset.escolher }));
+      const inp = w.querySelector("#cortejo-nome");
+      const usarNome = () => {
+        const nome = inp.value.trim();
+        if(!nome){ toast(livres.length ? "Escolha um padrinho ou escreva um nome." : "Escreva um nome.","err"); return; }
+        colocar({ nome });
+      };
+      w.querySelector("#cortejo-usar-nome").onclick = usarNome;
+      inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); usarNome(); } });
+    }
+  });
+}
+
+/* move uma pessoa de origem ("pool:cid" ou "entrada:vaga") para destino ("entrada:vaga", "nova" ou "pool") */
+function cortejoMover(origem, destino){
+  const cj = cortejoDados();
+  const achar = ref => { const [eid,i] = ref.split(":"); const en = cj.entradas.find(x => x.id === eid); return en ? { en, i:Number(i) } : null; };
+  let pessoa, de = null;
+  if(origem.startsWith("pool:")) pessoa = { cid:origem.slice(5) };
+  else { de = achar(origem); if(!de) return; pessoa = de.en.vagas[de.i]; }
+  if(!pessoa) return;
+
+  if(destino === "pool"){
+    if(!de) return;
+    de.en.vagas[de.i] = null;
+  } else if(destino === "nova"){
+    if(de) de.en.vagas[de.i] = null;
+    cortejoNovaEntrada(pessoa);
+  } else {
+    const para = achar(destino); if(!para) return;
+    if(de && de.en === para.en && de.i === para.i) return;
+    const ocupante = para.en.vagas[para.i];
+    if(ocupante && !de){
+      const outra = 1 - para.i;
+      if(para.en.vagas[outra]){ toast("Essa entrada já está completa — solte numa vaga livre.","err"); return; }
+      para.en.vagas[outra] = pessoa;
+    } else {
+      para.en.vagas[para.i] = pessoa;
+      if(de) de.en.vagas[de.i] = ocupante || null;   /* troca de lugar */
+    }
+  }
+  cortejoDados(); salvar(); render();
+}
+
+function cortejoFormarPares(){
+  const pos = cortejoPosicionados();
+  const livres = App.data.convidados.filter(c => c.grupo === "padrinhos" && !pos.has(c.id));
+  const fem = c => /madrinha|dama|florista/i.test(c.papelPadrinho || "");
+  const elas = livres.filter(fem), eles = livres.filter(c => !fem(c));
+  let n = 0;
+  while(elas.length || eles.length){
+    const a = elas.shift(), b = eles.shift();
+    const en = cortejoNovaEntrada({ cid:(a||b).id });
+    if(a && b) en.vagas[1] = { cid:b.id };
+    n++;
+  }
+  salvar(); render();
+  toast(`${n} ${n === 1 ? "entrada criada" : "entradas criadas"}. Arraste para ajustar os pares.`,"ok");
+}
+
+function cortejoTexto(){
+  return cortejoDados().entradas.map((en, i) => {
+    const [a, b] = en.vagas.map(cortejoPessoa);
+    return `${i+1}. ${a.nome}${b ? " & " + b.nome : " (" + cortejoSozinho(en.vagas[0]).toLowerCase() + ")"}`;
+  }).join("\n");
+}
+
 POS_RENDER.padrinhos = function(){
+  const v = $("#view");
+  /* arrastar e soltar do cortejo */
+  let arrastando = null;
+  v.addEventListener("dragstart", e => {
+    const it = e.target.closest("[data-arrastar]"); if(!it) return;
+    arrastando = it.dataset.arrastar;
+    it.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    try{ e.dataTransfer.setData("text/plain", arrastando); }catch(_){}
+  });
+  v.addEventListener("dragend", e => {
+    const it = e.target.closest("[data-arrastar]"); if(it) it.classList.remove("dragging");
+    $$(".drag-over").forEach(n => n.classList.remove("drag-over"));
+  });
+  const alvoDe = el => el.closest("[data-vaga], [data-nova-entrada], [data-pool-cortejo]");
+  v.addEventListener("dragover", e => {
+    const n = alvoDe(e.target); if(!n || !arrastando) return;
+    e.preventDefault(); n.classList.add("drag-over");
+  });
+  v.addEventListener("dragleave", e => {
+    const n = alvoDe(e.target); if(n && !n.contains(e.relatedTarget)) n.classList.remove("drag-over");
+  });
+  v.addEventListener("drop", e => {
+    const n = alvoDe(e.target); if(!n) return;
+    e.preventDefault(); n.classList.remove("drag-over");
+    const origem = arrastando || e.dataTransfer.getData("text/plain");
+    arrastando = null;
+    if(!origem) return;
+    cortejoMover(origem, n.dataset.vaga || (n.hasAttribute("data-nova-entrada") ? "nova" : "pool"));
+  });
+
   const qtd = $("#cx-qtd");
   if(qtd) qtd.addEventListener("change", () => {
     caixaDados().qtdCaixas = Math.max(0, Math.floor(Number(qtd.value)||0));
@@ -966,6 +1234,41 @@ POS_RENDER.padrinhos = function(){
   $("#view").addEventListener("click", e => {
     const pv = e.target.closest("[data-pvista]");
     if(pv){ App.filtros.padrinhos.vista = pv.dataset.pvista; render(); return; }
+    /* cortejo */
+    const tirar = e.target.closest("[data-tirar]");
+    if(tirar){ cortejoMover(tirar.dataset.tirar, "pool"); return; }
+    const vagaVazia = e.target.closest(".en-slot.vazio[data-vaga]");
+    if(vagaVazia){ abrirEscolherCortejo(vagaVazia.dataset.vaga); return; }
+    if(e.target.closest("[data-nova-entrada]")){ abrirEscolherCortejo(null); return; }
+    const sc = e.target.closest("[data-sugestao-cortejo]");
+    if(sc){
+      const nome = sc.dataset.sugestaoCortejo;
+      cortejoNovaEntrada({ nome }, /^noiva$/i.test(nome) ? cortejoDados().entradas.length : /^noivo$/i.test(nome) ? 0 : undefined);
+      salvar(); render(); return;
+    }
+    const mv = e.target.closest("[data-subir], [data-descer]");
+    if(mv){
+      const ents = cortejoDados().entradas;
+      const i = ents.findIndex(x => x.id === (mv.dataset.subir || mv.dataset.descer));
+      const j = mv.dataset.subir ? i - 1 : i + 1;
+      if(i < 0 || j < 0 || j >= ents.length) return;
+      [ents[i], ents[j]] = [ents[j], ents[i]];
+      salvar(); render(); return;
+    }
+    const ap = e.target.closest("[data-apagar-entrada]");
+    if(ap){
+      const cj = cortejoDados();
+      const k = cj.entradas.findIndex(x => x.id === ap.dataset.apagarEntrada);
+      if(k >= 0) cj.entradas.splice(k, 1);
+      salvar(); render(); toast("Entrada apagada — os padrinhos voltaram para \"Sem posição\".","ok"); return;
+    }
+    if(e.target.closest("[data-formar-pares]")){ cortejoFormarPares(); return; }
+    if(e.target.closest("[data-copiar-cortejo]")){
+      const txt = cortejoTexto();
+      if(!txt){ toast("O cortejo ainda está vazio.","err"); return; }
+      if(navigator.clipboard) navigator.clipboard.writeText("Ordem do cortejo\n\n" + txt).catch(()=>{});
+      toast("Ordem copiada — é só colar no WhatsApp.","ok"); return;
+    }
     if(e.target.closest("[data-novo-item-caixa]")){ abrirFormItemCaixa(); return; }
     const sug = e.target.closest("[data-sugestao-caixa]");
     if(sug){ abrirFormItemCaixa(null, sug.dataset.sugestaoCaixa); return; }

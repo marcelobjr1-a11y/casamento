@@ -436,6 +436,7 @@ function dadosIniciais(){
     marcos: MARCOS.map(m => ({ ...m, ok:false })),
     equipe: EQUIPE.filter(e => e.id === "e1" || e.id === "e2").map(e => ({ ...e, tel:"", email:"" })),
     caixaPadrinhos: { itens:[], qtdCaixas:0, status:{} },
+    cortejo: { entradas:[] },
     notificacoes: []
   };
 }
