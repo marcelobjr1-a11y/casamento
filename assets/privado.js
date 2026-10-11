@@ -29,6 +29,9 @@ function mascararDados(real){
   const d = JSON.parse(JSON.stringify(real));
   const c = d.casal;
   c.local = c.local ? "Espaço do evento" : ""; c.cidade = c.cidade ? "Cidade" : "";
+  /* data: troca por outra (o campo de Configurações não mostra a verdadeira) e as telas mostram •• */
+  if(c.data){ const dt = parseData(c.data); dt.setDate(dt.getDate() + 41); c.data = `${dt.getFullYear()}-${d2(dt.getMonth()+1)}-${d2(dt.getDate())}`; }
+  c.hora = "";
   c.endereco = ""; c.mapaUrl = ""; c.pixChave = ""; c.pixTitular = "";
 
   d.convidados.forEach(g => {

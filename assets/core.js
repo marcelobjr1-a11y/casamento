@@ -112,12 +112,16 @@ function parseData(s){
   return new Date(y, m-1, d);
 }
 function hoje(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+/* modo privado: a data do casamento não aparece */
+function dataEscondida(s){ return App.privado && s && App.data && s === App.data.casal.data; }
 function fmtData(s, longo){
+  if(dataEscondida(s)) return longo ? "•• de •••••• de ••••" : "•• •••";
   const d = parseData(s); if(!d) return "—";
   return longo ? `${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`
                : `${d2(d.getDate())} ${MESES[d.getMonth()]}`;
 }
 function fmtDataExt(s){
+  if(dataEscondida(s)) return "•• de •••••• de ••••";
   const d = parseData(s); if(!d) return "—";
   return `${DIAS_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}`;
 }
@@ -365,12 +369,13 @@ function metricas(){
     tarefasPend, tarefasFeitas: d.tarefas.length - tarefasPend.length,
     contratosPend, semMesa,
     progresso: pct(marcosOk, d.marcos.length), marcosOk,
-    diasRestantes: diasAte(d.casal.data)
+    diasRestantes: App.privado ? "••" : diasAte(d.casal.data)
   };
 }
 /* texto da contagem regressiva, tratando data indefinida, o dia do casamento e datas passadas */
 function contagem(){
   if(!App.data.casal.data) return { semData:true, num:null, rotulo:"", frase:"Defina a data do casamento" };
+  if(App.privado) return { num:"••", rotulo:"dias", frase:"Faltam <b>••</b> dias para o grande dia" };
   const n = diasAte(App.data.casal.data);
   if(n > 1)  return { num:n, rotulo:"dias", frase:`Faltam <b>${n}</b> dias para o grande dia` };
   if(n === 1) return { num:1, rotulo:"dia",  frase:"Falta <b>1</b> dia para o grande dia" };
