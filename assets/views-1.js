@@ -1043,27 +1043,25 @@ function cortejoHTML(padrinhos){
   <div class="grid" style="grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start" id="cortejo-grid">
     <div class="card">
       <div class="card-head"><h3>Ordem de entrada</h3>
-        <span class="t-xs t-muted">Arraste as pessoas para formar os pares · use as setas para mudar a ordem</span></div>
+        <span class="t-xs t-muted">Segure o número e arraste para mudar a ordem · arraste as pessoas para formar os pares</span></div>
       <div class="card-body">
         <div class="aisle">
-          <div class="aisle-end">${ico("church")}<span>Porta da igreja · o cortejo começa aqui</span></div>
+          <div class="aisle-end altar">${ico("heart")}<span>Altar</span></div>
           ${cj.entradas.map((en, idx) => {
             const solo = !en.vagas[1];
             return `<div class="entrada ${solo?"solo":""}" data-entrada="${en.id}">
-              <span class="en-num">${idx+1}</span>
+              <span class="en-num" data-segurar="${en.id}" title="Segure e arraste para mudar a ordem"><b>${idx+1}</b><i class="en-grip"></i></span>
               <div class="en-par">${vaga(en,0)}<span class="en-amp">${solo ? "" : "&amp;"}</span>${vaga(en,1)}</div>
               <div class="en-acoes">
                 ${solo ? `<span class="badge warn">${cortejoSozinho(en.vagas[0])}</span>` : `<span class="badge ok">Em par</span>`}
                 <span class="center gap-6">
-                  <button class="btn btn-sm" data-subir="${en.id}" ${idx===0?"disabled":""} title="Entra antes">↑</button>
-                  <button class="btn btn-sm" data-descer="${en.id}" ${idx===cj.entradas.length-1?"disabled":""} title="Entra depois">↓</button>
                   <button class="btn btn-sm btn-danger" data-apagar-entrada="${en.id}" title="Apagar entrada">${ico("trash")}</button>
                 </span>
               </div>
             </div>`;
           }).join("")}
           <div class="entrada-nova" data-nova-entrada>${ico("plus")}<span>${cj.entradas.length ? "Solte aqui ou clique para criar uma nova entrada" : "Arraste um padrinho para cá ou clique para criar a primeira entrada"}</span></div>
-          <div class="aisle-end altar">${ico("heart")}<span>Altar</span></div>
+          <div class="aisle-end">${ico("church")}<span>Porta da igreja · o cortejo começa aqui</span></div>
         </div>
       </div>
     </div>
@@ -1226,6 +1224,48 @@ POS_RENDER.padrinhos = function(){
     cortejoMover(origem, n.dataset.vaga || (n.hasAttribute("data-nova-entrada") ? "nova" : "pool"));
   });
 
+  /* segurar o número e arrastar para mudar a ordem (mouse e toque) */
+  v.addEventListener("pointerdown", e => {
+    const h = e.target.closest("[data-segurar]"); if(!h || e.button > 0) return;
+    e.preventDefault();
+    const linha = h.closest(".entrada"), aisle = linha.parentElement;
+    const inicioY = e.clientY;
+    let rolar = 0, ultimoY = e.clientY;
+    linha.classList.add("reordenando");
+    try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    const reposicionar = y => {
+      const outras = [...aisle.querySelectorAll(".entrada:not(.reordenando)")];
+      const depois = outras.find(o => { const r = o.getBoundingClientRect(); return y < r.top + r.height/2; });
+      const alvo = depois || aisle.querySelector("[data-nova-entrada]");
+      if(alvo !== linha.nextElementSibling) aisle.insertBefore(linha, alvo);
+      [...aisle.querySelectorAll(".entrada")].forEach((o,i) => { const b = o.querySelector(".en-num b"); if(b) b.textContent = i+1; });
+    };
+    const passo = () => {
+      const m = 70, y = ultimoY, alt = innerHeight;
+      const vel = y < m ? -(m - y)/4 : y > alt - m ? (y - (alt - m))/4 : 0;
+      if(vel){ window.scrollBy(0, vel); reposicionar(ultimoY); }
+      rolar = requestAnimationFrame(passo);
+    };
+    rolar = requestAnimationFrame(passo);
+    const mover = ev => { ultimoY = ev.clientY; if(Math.abs(ev.clientY - inicioY) > 3) reposicionar(ev.clientY); };
+    const soltar = () => {
+      cancelAnimationFrame(rolar);
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+      linha.classList.remove("reordenando");
+      const ordem = [...aisle.querySelectorAll(".entrada")].map(o => o.dataset.entrada);
+      const ents = cortejoDados().entradas;
+      const antes = ents.map(x => x.id).join();
+      ents.sort((a,b) => ordem.indexOf(a.id) - ordem.indexOf(b.id));
+      if(ents.map(x => x.id).join() !== antes) salvar();
+      render();
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+  });
+
   const qtd = $("#cx-qtd");
   if(qtd) qtd.addEventListener("change", () => {
     caixaDados().qtdCaixas = Math.max(0, Math.floor(Number(qtd.value)||0));
@@ -1244,15 +1284,6 @@ POS_RENDER.padrinhos = function(){
     if(sc){
       const nome = sc.dataset.sugestaoCortejo;
       cortejoNovaEntrada({ nome }, /^noiva$/i.test(nome) ? cortejoDados().entradas.length : /^noivo$/i.test(nome) ? 0 : undefined);
-      salvar(); render(); return;
-    }
-    const mv = e.target.closest("[data-subir], [data-descer]");
-    if(mv){
-      const ents = cortejoDados().entradas;
-      const i = ents.findIndex(x => x.id === (mv.dataset.subir || mv.dataset.descer));
-      const j = mv.dataset.subir ? i - 1 : i + 1;
-      if(i < 0 || j < 0 || j >= ents.length) return;
-      [ents[i], ents[j]] = [ents[j], ents[i]];
       salvar(); render(); return;
     }
     const ap = e.target.closest("[data-apagar-entrada]");
