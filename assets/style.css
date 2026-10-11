@@ -668,6 +668,19 @@ tr:hover .row-actions{ opacity:1; }
   #cortejo-grid .guest-pool .pool-item{ margin:0; flex:0 1 220px; min-width:0; }
 }
 
+/* ---------- Estimativa de pessoas ---------- */
+.comp-linha{ display:grid; grid-template-columns:minmax(150px,1.4fr) repeat(5,minmax(0,1fr)); gap:12px; align-items:center;
+  padding:13px 4px; border-bottom:1px solid var(--line-2); }
+.comp-linha:last-child{ border-bottom:0; }
+.comp-num b{ display:block; font-family:var(--sans); font-weight:550; font-size:21px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.comp-num span{ font-size:11.5px; color:var(--muted); }
+.comp-linha:not(.destaque) .comp-num b{ font-size:17px; color:var(--ink-3); }
+.comp-num.pagante b{ color:var(--gold); }
+@media (max-width:900px){
+  .comp-linha{ grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:10px; }
+  .comp-tit{ grid-column:1 / -1; }
+}
+
 /* ---------- Prioridade dos convidados ---------- */
 .prio-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 .prio-tile{ display:flex; flex-direction:column; gap:3px; text-align:left; padding:13px 14px; border-radius:12px;

@@ -367,31 +367,7 @@ VIEWS.convidados = function(){
 
   ${m.total ? prioridadesHTML() : ""}
 
-  ${m.totalGeral ? `
-  <div class="card mb-20">
-    <div class="card-body">
-      <div class="between wrap gap-16">
-        <div>
-          <div class="eyebrow mb-8">Composição dos confirmados</div>
-          <div class="center gap-16 wrap">
-            ${[["adulto","Adultos"],["crianca07","Crianças 0-7"],["crianca810","Crianças 8-10"]].map(([id,rot]) => `
-              <div>
-                <div class="num" style="font-size:22px">${m.resumoConfirmados[id] || 0}</div>
-                <div class="t-xs t-muted">${rot}</div>
-              </div>`).join("")}
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div class="eyebrow mb-8">Equivale a pagar</div>
-          <div class="num" style="font-size:30px;color:var(--gold)">${(m.resumoConfirmados.equivalente % 1 ? m.resumoConfirmados.equivalente.toFixed(1).replace(".",",") : m.resumoConfirmados.equivalente)}</div>
-          <div class="t-xs t-muted">adultos no buffet</div>
-        </div>
-      </div>
-      <div class="alert info mt-16">${ico("info")}
-        <div class="a-desc">Crianças de 0 a 7 anos não pagam e as de 8 a 10 pagam meia — duas delas equivalem a um adulto.</div>
-      </div>
-    </div>
-  </div>` : ""}
+  ${m.totalGeral ? composicaoPessoasHTML() : ""}
 
   <div class="card">
     <div class="card-body" style="padding-bottom:0">
@@ -505,16 +481,43 @@ function badgePrioridadeConv(c, clicavel){
   return p ? `<span class="badge ${p.tom}"${attr}>${p.letra} · ${p.nome}</span>`
            : `<span class="badge plain"${attr} style="${clicavel?"cursor:pointer;":""}color:var(--muted-2)">Definir</span>`;
 }
+/* estimativa de pessoas: adultos, crianças que pagam meia e gratuitas */
+function fmtEquiv(n){ return n % 1 ? n.toFixed(1).replace(".",",") : String(n); }
+function composicaoPessoasHTML(){
+  const conv = App.data.convidados;
+  const est = resumoPessoas(conv.filter(c => c.rsvp !== "recusado"));
+  const conf = resumoPessoas(conv.filter(c => c.rsvp === "confirmado"));
+  const linha = (titulo, nota, r, destaque) => `
+    <div class="comp-linha ${destaque ? "destaque" : ""}">
+      <div class="comp-tit"><div style="font-weight:550;font-size:13.5px">${titulo}</div><div class="t-xs t-muted">${nota}</div></div>
+      <div class="comp-num"><b>${r.total}</b><span>pessoas</span></div>
+      <div class="comp-num"><b>${r.adulto || 0}</b><span>adultos</span></div>
+      <div class="comp-num"><b>${r.crianca810 || 0}</b><span>meia · 8 a 10 anos</span></div>
+      <div class="comp-num"><b>${r.crianca07 || 0}</b><span>grátis · 0 a 7 anos</span></div>
+      <div class="comp-num pagante"><b>${fmtEquiv(r.equivalente)}</b><span>pagantes</span></div>
+    </div>`;
+  return `
+  <div class="card mb-20">
+    <div class="card-head"><h3>Estimativa de pessoas</h3>
+      <span class="t-xs t-muted">Crianças de 0 a 7 não pagam · de 8 a 10 pagam meia (duas = um adulto)</span></div>
+    <div class="card-body" style="padding-top:4px">
+      ${linha("Estimativa", "todos os convidados, menos quem recusou", est, true)}
+      ${linha("Já confirmados", "quem respondeu que vai", conf, false)}
+    </div>
+  </div>`;
+}
+
 function prioridadesHTML(){
   const d = App.data, f = App.filtros.convidados;
   const pessoas = lista => lista.reduce((a,c) => a + qtdPessoas(c), 0);
   const ativos = d.convidados.filter(c => c.rsvp !== "recusado");
   const cap = Number(d.casal.convidadosPrevistos) || 0;
-  let acumulado = 0;
+  let acumulado = 0, ateAqui = [];
   const tiles = PRIORIDADES.map(p => {
     const l = ativos.filter(c => Number(c.prioridade) === p.id);
     acumulado += pessoas(l);
-    return { ...p, convites:l.length, pessoas:pessoas(l), acumulado };
+    ateAqui = ateAqui.concat(l);
+    return { ...p, convites:l.length, pessoas:pessoas(l), acumulado, pagantes:resumoPessoas(ateAqui).equivalente };
   });
   const sem = ativos.filter(c => !prioridade(c.prioridade));
   return `
@@ -530,7 +533,7 @@ function prioridadesHTML(){
             <span class="prio-nome">${t.nome}</span>
             <span class="t-xs t-muted">${t.desc}</span>
             <span class="prio-num">${t.pessoas}<small> ${t.pessoas===1?"pessoa":"pessoas"}</small></span>
-            <span class="t-xs ${estoura?"":"t-muted"}" style="${estoura?"color:var(--danger)":""}">Até ${t.letra}: <b>${t.acumulado}</b> pessoas${cap ? (estoura ? ` · passa ${t.acumulado-cap} do previsto` : ` · sobram ${cap-t.acumulado}`) : ""}</span>
+            <span class="t-xs ${estoura?"":"t-muted"}" style="${estoura?"color:var(--danger)":""}">Até ${t.letra}: <b>${t.acumulado}</b> pessoas · ${fmtEquiv(t.pagantes)} pagantes${cap ? (estoura ? ` · passa ${t.acumulado-cap} do previsto` : ` · sobram ${cap-t.acumulado}`) : ""}</span>
           </button>`;
         }).join("")}
         <button class="prio-tile ${String(f.prioridade)==="0"?"active":""}" data-fprio="0">
