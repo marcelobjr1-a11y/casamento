@@ -83,8 +83,9 @@ VIEWS.fornecedores = function(){
               <span class="t-xs ${rest>0?"":"t-muted"}" style="${rest>0?"color:var(--warn)":""}">${rest>0?`Falta ${money(rest)}`:"Quitado"}</span>
             </div>`
           : `<div class="t-sm t-muted" style="line-height:1.5">${esc(x.nota.slice(0,90))}${x.nota.length>90?"…":""}</div>`}
-          <div class="center gap-8 mt-16 t-xs t-muted">
-            ${ico("phone")}<span>${esc(x.tel)}</span>
+          <div class="between mt-16" style="gap:8px">
+            <span class="center gap-8 t-xs t-muted" style="min-width:0">${x.tel ? `${ico("phone")}<span class="ell">${esc(x.tel)}</span>` : ""}</span>
+            ${contratoForn(x.id) ? `<span class="badge gold" role="button" data-abrir-contrato="${contratoForn(x.id).id}" title="Abrir o contrato" style="cursor:pointer">${ico("file")}Contrato</span>` : ""}
           </div>
         </button>`;
       }).join("")}
@@ -96,7 +97,8 @@ VIEWS.fornecedores = function(){
           <tr data-forn="${x.id}" style="cursor:pointer">
             <td><span class="cell-name">
               <span class="stat-ico" style="width:32px;height:32px;flex:0 0 32px;border-radius:9px">${ico(CAT_ICO[x.cat]||"briefcase")}</span>
-              <span class="nm ell">${esc(x.nome)}</span></span></td>
+              <span class="nm ell">${esc(x.nome)}</span>
+              ${contratoForn(x.id) ? `<span class="badge gold" role="button" data-abrir-contrato="${contratoForn(x.id).id}" title="Abrir o contrato" style="cursor:pointer;flex:0 0 auto">${ico("file")}Contrato</span>` : ""}</span></td>
             <td class="t-sm t-ink3">${esc(x.cat)}</td>
             <td class="t-sm t-ink3 ell">${esc(x.contato)}</td>
             <td>${badgeStatusForn(x.status)}</td>
@@ -110,6 +112,11 @@ VIEWS.fornecedores = function(){
           </tr>`).join("")}
         </tbody></table></div></div>`}`;
 };
+
+/* o contrato mais recente anexado ao fornecedor */
+function contratoForn(id){
+  return App.data.documentos.find(dd => dd.forn === id && dd.cat === "Contratos") || null;
+}
 
 function filtrarFornecedores(){
   const f = App.filtros.fornecedores, q = f.busca.trim().toLowerCase();
@@ -136,6 +143,8 @@ POS_RENDER.fornecedores = function(){
   v.addEventListener("click", e => {
     const vi = e.target.closest("[data-vista]");
     if(vi){ App.filtros.fornecedores.vista = vi.dataset.vista; render(); return; }
+    const ac = e.target.closest("[data-abrir-contrato]");
+    if(ac){ e.stopPropagation(); baixarArquivo(ac.dataset.abrirContrato); return; }
     if(e.target.closest("[data-novo-forn]")){ abrirFormFornecedor(); return; }
     if(e.target.closest("[data-limpar-forn]")){
       App.filtros.fornecedores = { busca:"", cat:"todas", status:"todos", vista:App.filtros.fornecedores.vista }; render(); return; }
@@ -224,7 +233,8 @@ function abrirFornecedor(id){
           ${dd.cat==="Contratos" ? (dd.assinado?`<span class="badge ok">Assinado</span>`:`<span class="badge warn">Pendente</span>`) : ""}
           <button class="mini-btn danger" data-excluir-doc-forn="${dd.id}" title="Excluir">${ico("trash")}</button>
         </div>`).join("")
-        : `<p class="t-sm t-muted" style="padding:6px 0">Nenhum documento anexado ainda.</p>`}`,
+        : modoCerimonial() ? `<p class="t-sm t-muted" style="padding:6px 0">Nenhum documento anexado ainda.</p>`
+        : `<button class="btn" data-anexar-contrato style="width:100%;justify-content:center;border-style:dashed;height:48px">${ico("upload")}Anexar o contrato deste fornecedor</button>`}`,
     rodape: modoCerimonial() ? `<div class="grow"></div><button class="btn" data-fechar>Fechar</button>` :
            `<button class="btn btn-danger" data-excluir>Excluir</button>
             <div class="grow"></div>
@@ -299,6 +309,13 @@ function abrirFormFornecedor(id){
         <input class="input" name="pixTitular" value="${x?esc(x.pixTitular||""):""}" placeholder="Nome de quem recebe"></div>
       <div class="field full"><label>Observações</label>
         <textarea class="textarea" name="nota" placeholder="O que está incluído, condições, combinados…">${x?esc(x.nota):""}</textarea></div>
+      <div class="field full"><label>Arquivo do contrato</label>
+        <input class="input" type="file" id="fv-contrato" accept=".pdf,image/*,.doc,.docx" style="padding:8px 10px;height:auto">
+        <span class="hint">${(() => {
+          const ja = x ? App.data.documentos.filter(dd => dd.forn === x.id && dd.cat === "Contratos") : [];
+          return ja.length ? `Já anexado: ${ja.map(dd => esc(dd.nome)).join(", ")}. Escolha outro arquivo para anexar mais um.`
+                           : "PDF, foto ou Word. Ele também aparece em Documentos → Contratos.";
+        })()}</span></div>
 
       <div class="field full">
         <div class="sep" style="margin:4px 0 16px"></div>
@@ -334,8 +351,9 @@ function abrirFormFornecedor(id){
       iValor.addEventListener("input", atualizarPreview);
       iQtd.addEventListener("input", atualizarPreview);
 
-      w.querySelector("#salvar-forn").onclick = () => {
+      w.querySelector("#salvar-forn").onclick = async () => {
         const fd = new FormData(w.querySelector("#form-forn"));
+        const arqContrato = w.querySelector("#fv-contrato").files[0];
         const nome = String(fd.get("nome")||"").trim();
         if(!nome){ toast("Informe o nome do fornecedor.","err"); return; }
         const pValor = Number(fd.get("parcelaValor"))||0;
@@ -365,8 +383,22 @@ function abrirFormFornecedor(id){
           }
           if(!alvo.valor) alvo.valor = pValor * pQtd;
         }
+        if(arqContrato){
+          const bt = w.querySelector("#salvar-forn");
+          bt.disabled = true; bt.innerHTML = `<span class="spinner"></span> Anexando…`;
+          try{
+            const ext = (arqContrato.name.split(".").pop() || "pdf").toLowerCase();
+            await anexarArquivo(arqContrato, { cat:"Contratos", forn:alvo.id, assinado:alvo.contrato, nome:`Contrato — ${alvo.nome}.${ext}` });
+          }catch(e){
+            bt.disabled = false; bt.textContent = x ? "Salvar alterações" : "Cadastrar";
+            toast("Não foi possível anexar o arquivo: " + e.message, "err"); return;
+          }
+        }
         salvar(); fecharModal(); render();
-        toast(x?"Fornecedor atualizado.":"Fornecedor cadastrado.","ok");
+        toast(arqContrato ? (x ? "Fornecedor atualizado e contrato anexado." : "Fornecedor cadastrado com o contrato.")
+                          : (x ? "Fornecedor atualizado." : "Fornecedor cadastrado."), "ok");
+        if(arqContrato && arqContrato.size > 10*1024*1024)
+          toast("O arquivo tem mais de 10 MB: ele abre neste aparelho, mas não vai para os outros.", "err");
       };
     }
   });
