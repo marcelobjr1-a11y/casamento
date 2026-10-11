@@ -132,6 +132,7 @@ async function nuvemEnviar(forcar){
 /* ---------- o ciclo principal ---------- */
 async function nuvemSincronizar(opcoes){
   const manual = !!(opcoes && opcoes.manual);
+  if(App.privado) return { ok:false, motivo:"modo privado" };   // retoma ao sair do modo privado
   if(modoCerimonial()) return cerSincronizar(manual);
   if(!siteConfigurado()){ nuvemDefinir("desconectado"); return { ok:false, motivo:"desconectado" }; }
   if(Nuvem.ocupado) return { ok:false, motivo:"ocupado" };

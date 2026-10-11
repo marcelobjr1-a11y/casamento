@@ -30,6 +30,8 @@ function gravarLocal(){
 }
 /* toda alteração feita pelo usuário passa por aqui: grava e avisa a nuvem */
 function salvar(){
+  /* modo privado: a tela mostra dados fictícios, então nada é gravado */
+  if(App.privado){ privBloquear(); return; }
   /* a cerimonialista só visualiza: qualquer alteração é desfeita */
   if(typeof modoCerimonial === "function" && modoCerimonial()){ cerDesfazerAlteracao(); return; }
   gravarLocal();
@@ -90,11 +92,13 @@ function esc(s){
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 function money(v, compacto){
+  if(App.privado) return "R$ ••••";
   const n = Number(v) || 0;
   if(compacto && n >= 1000) return "R$ " + (n/1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(".",",") + "mil";
   return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits:0, maximumFractionDigits:0 });
 }
 function moneyF(v){
+  if(App.privado) return "R$ ••••";
   return "R$ " + (Number(v)||0).toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 });
 }
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -223,6 +227,7 @@ const ICONES = {
   logout:'<path d="M9 21H5.5A1.5 1.5 0 0 1 4 19.5v-15A1.5 1.5 0 0 1 5.5 3H9"/><path d="M15.5 16.5 20 12l-4.5-4.5M20 12H9"/>',
   copy:'<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
   eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:'<path d="M3 3l18 18"/><path d="M10.6 5.6A9.8 9.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.1 3.9"/><path d="M6.4 6.9C3.9 8.6 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
   chat:'<path d="M20.5 12a8 8 0 0 1-11.6 7.1L3.5 20.5l1.4-5.4A8 8 0 1 1 20.5 12z"/>',
   userPlus:'<path d="M15 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="8.5" cy="7" r="3.2"/><path d="M19 8v6M22 11h-6"/>',
@@ -381,6 +386,7 @@ function linkWhatsApp(telefone, mensagem){
   return `https://wa.me/${digitos}?text=${encodeURIComponent(mensagem||"")}`;
 }
 function abrirWhatsApp(telefone, mensagem){
+  if(App.privado){ toast("Modo privado: clique no olhinho do topo para usar o WhatsApp.","err"); return false; }
   const link = linkWhatsApp(telefone, mensagem);
   if(!link){ toast("Este convidado não tem telefone cadastrado.","err"); return false; }
   window.open(link, "_blank", "noopener");
@@ -740,6 +746,7 @@ async function anexarArquivo(arquivo, extras){
   return doc;
 }
 async function baixarArquivo(docId){
+  if(App.privado){ toast("Modo privado: os arquivos ficam escondidos. Clique no olhinho do topo para abrir.","err"); return; }
   const doc = App.data.documentos.find(d => d.id === docId); if(!doc) return;
   let blob = await lerArquivoBlob(docId);
   if(!blob && doc.naNuvem && typeof arquivoBaixarDaNuvem === "function") blob = await arquivoBaixarDaNuvem(doc);
@@ -772,6 +779,7 @@ function arquivoParaFotoComprimida(arquivo, larguraMax){
 }
 
 async function importarRespostasSite(manual){
+  if(App.privado) return { ok:false, motivo:"modo privado" };
   if(!siteConfigurado()) return { ok:false, motivo:"não configurado" };
   try{
     const linhas = await chamarRPCSite("listar_respostas_site", { p_senha: App.data.casal.supabaseSenha });
@@ -875,6 +883,7 @@ function topbarHTML(){
     ${typeof modoCerimonial === "function" && modoCerimonial()
       ? `<span class="badge gold" title="Acesso da cerimonialista: só visualização">${ico("eye")}Só visualização</span>`
       : `<button class="btn btn-primary" data-adicionar>${ico("plus")}<span>Adicionar</span></button>`}
+    ${typeof privBotaoHTML === "function" ? privBotaoHTML() : ""}
     ${typeof nuvemBotaoHTML === "function" ? nuvemBotaoHTML() : ""}
     <button class="icon-btn" data-notificacoes aria-label="Notificações">
       ${ico("bell")}${naoLidas ? `<span class="dot">${naoLidas}</span>` : ""}
@@ -891,6 +900,9 @@ const VIEWS = {};
 function render(){
   const app = $("#app");
   document.body.classList.toggle("modo-cerimonial", typeof modoCerimonial === "function" && modoCerimonial());
+  /* se chegaram dados novos (ex.: da nuvem) com o modo privado ligado, mascara de novo */
+  if(App.privado && App.data && !App.data._mascarado){ App.dadosReais = App.data; App.data = mascararDados(App.data); }
+  document.body.classList.toggle("modo-privado", !!App.privado);
   app.innerHTML = sidebarHTML() + `<div class="main">${topbarHTML()}<main class="view" id="view"></main></div>`
     + `<div class="sidebar-scrim" data-menu-fechar></div>`;
   const view = $("#view");

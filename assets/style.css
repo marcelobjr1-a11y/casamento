@@ -858,3 +858,6 @@ body.modo-cerimonial [data-plano]{ display:none !important; }
 body.modo-cerimonial .en-num{ cursor:default; }
 body.modo-cerimonial .en-grip{ display:none; }
 body.modo-cerimonial .en-slot{ cursor:default; }
+
+/* ---------- Modo privado (olhinho) ---------- */
+.priv-btn.on{ background:var(--gold-wash); color:#8A6E39; box-shadow:inset 0 0 0 1px var(--gold-soft); }

@@ -156,6 +156,7 @@ function stdCopiarArte(){
 }
 async function stdEnviar(id){
   const c = App.data.convidados.find(x => x.id === id); if(!c) return;
+  if(App.privado){ toast("Modo privado: clique no olhinho do topo para enviar.","err"); return; }
   if(!c.telefone){ toast("Este convidado não tem telefone cadastrado.","err"); return; }
   /* tudo começa no clique: copiar a arte e abrir o WhatsApp (o navegador bloqueia se esperar) */
   const link = linkWhatsApp(c.telefone, stdMensagem(c));
