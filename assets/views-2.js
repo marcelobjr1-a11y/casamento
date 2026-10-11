@@ -1991,6 +1991,7 @@ VIEWS.config = function(){
 
       ${typeof nuvemCardConfigHTML === "function" ? nuvemCardConfigHTML() : ""}
       ${typeof cerCardConfigHTML === "function" ? cerCardConfigHTML() : ""}
+      ${typeof whatsCardConfigHTML === "function" ? whatsCardConfigHTML() : ""}
 
       <div class="card">
         <div class="card-head"><h3>Site dos convidados</h3>

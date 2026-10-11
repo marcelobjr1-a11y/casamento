@@ -61,7 +61,11 @@ VIEWS.savethedate = function(){
     </div>
     <div class="page-actions">
       <button class="btn" data-std-mensagem>${ico("edit")}Mensagem e arte</button>
-      ${proximo ? `<button class="btn btn-primary" data-std-enviar="${proximo.id}" title="Abre o WhatsApp de ${esc(proximo.nome)}">${ico("send")}Enviar para o próximo</button>` : ""}
+      ${whatsConectado()
+        ? (lista.some(c => !c.stdEnviado && !c.stdVisto && c.telefone)
+            ? `<button class="btn btn-primary" data-std-massa title="Envia pelo seu WhatsApp, com pausas entre as mensagens">${ico("send")}Enviar automaticamente</button>` : "")
+        : `${!whatsConfigurado() ? `<button class="btn" data-whats-conectar title="Enviar direto, sem abrir conversa por conversa">${ico("chat")}Conectar WhatsApp</button>` : ""}
+           ${proximo ? `<button class="btn btn-primary" data-std-enviar="${proximo.id}" title="Abre o WhatsApp de ${esc(proximo.nome)}">${ico("send")}Enviar para o próximo</button>` : ""}`}
     </div>
   </div>
 
@@ -80,8 +84,10 @@ VIEWS.savethedate = function(){
         <div class="eyebrow mb-8">Prévia da mensagem</div>
         <div class="std-balao">${esc(stdMensagem({ nome: proximo ? proximo.nome : "Maria" })).replace(/\n/g,"<br>")}</div>
         <p class="t-xs t-muted mt-12" style="line-height:1.55">
-          ${std.arte ? "Ao clicar em Enviar, a arte é copiada: quando o WhatsApp abrir, é só colar (Cmd+V no computador, ou segure e cole no celular) e mandar junto com o texto."
-                     : "Dica: adicione a arte do save the date para mandar junto com o texto."}
+          ${whatsConectado()
+            ? `${ico("checkCircle")} WhatsApp conectado: as mensagens saem direto do seu número${std.arte ? ", com a arte junto" : ""}.`
+            : std.arte ? "Ao clicar em Enviar, a arte é copiada: quando o WhatsApp abrir, é só colar (Cmd+V no computador, ou segure e cole no celular) e mandar junto com o texto."
+                       : "Dica: adicione a arte do save the date para mandar junto com o texto."}
         </p>
         ${std.arte ? `<button class="btn btn-sm mt-8" data-std-baixar-arte>${ico("download")}Baixar arte</button>` : ""}
       </div>
@@ -158,6 +164,18 @@ async function stdEnviar(id){
   const c = App.data.convidados.find(x => x.id === id); if(!c) return;
   if(App.privado){ toast("Modo privado: clique no olhinho do topo para enviar.","err"); return; }
   if(!c.telefone){ toast("Este convidado não tem telefone cadastrado.","err"); return; }
+  if(whatsConectado()){
+    const b = document.querySelector(`[data-std-enviar="${id}"]`);
+    if(b){ b.disabled = true; b.innerHTML = `<span class="spinner"></span>`; }
+    try{
+      await whatsEnviar(c.telefone, stdMensagem(c), stdDados().arte);
+      c.stdEnviado = new Date().toISOString(); salvar(); render();
+      toast(`Save the date enviado para ${c.nome.split(" ")[0]}.`, "ok");
+    }catch(e){
+      render(); toast(`Não foi para ${c.nome.split(" ")[0]}: ${whatsErroTexto(e)}.`, "err");
+    }
+    return;
+  }
   /* tudo começa no clique: copiar a arte e abrir o WhatsApp (o navegador bloqueia se esperar) */
   const link = linkWhatsApp(c.telefone, stdMensagem(c));
   const copia = stdCopiarArte();
@@ -231,6 +249,7 @@ POS_RENDER.savethedate = function(){
     const fl = e.target.closest("[data-std-filtro]");
     if(fl){ f.status = fl.dataset.stdFiltro; render(); return; }
     if(e.target.closest("[data-std-mensagem]")){ abrirMensagemStd(); return; }
+    if(e.target.closest("[data-std-massa]")){ abrirEnvioEmMassa(stdLista().map(c => c.id)); return; }
     if(e.target.closest("[data-std-baixar-arte]")){
       const a = document.createElement("a"); a.href = stdDados().arte; a.download = "save-the-date.jpg"; a.click(); return;
     }

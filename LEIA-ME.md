@@ -63,6 +63,18 @@ Para isso funcionar, o script `convite/supabase-setup.sql` precisa ter sido roda
 Uma rotina do GitHub (`.github/workflows/manter-banco-ativo.yml`) chama o banco a cada 3 dias
 para o Supabase não pausar por falta de uso.
 
+## WhatsApp: envio direto (Evolution API no Railway)
+
+O save the date pode sair direto do WhatsApp de vocês, sem abrir conversa por conversa.
+1. No Railway, publique o modelo **"Deploy Whatsapp API"** (Evolution API) e gere um domínio público.
+2. Copie o domínio e a variável `AUTHENTICATION_API_KEY`.
+3. No Ateliê: **Configurações → WhatsApp — envio direto → Conectar WhatsApp**, cole os dois e leia o QR Code
+   no celular (WhatsApp → Aparelhos conectados).
+4. Em **Save the date**, use **Enviar automaticamente**: as mensagens saem com 25 a 55 segundos de pausa entre elas.
+
+Não é um recurso oficial do WhatsApp: mande em lotes pequenos (até ~40 por dia) para reduzir o risco de bloqueio.
+A conexão fica salva só no aparelho onde foi feita.
+
 ## Onde ficam os dados
 
 Tudo é salvo **no seu próprio navegador** (localStorage). Com a sincronização ligada (veja acima), uma cópia também fica no seu banco de dados do Supabase, para o outro aparelho enxergar.
