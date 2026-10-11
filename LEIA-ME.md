@@ -45,7 +45,19 @@ O ícone de nuvem no topo mostra o estado: **verde** = sincronizado, **dourado**
 **vermelho** = sem conexão com o banco de dados. Se os dois mexerem no mesmo instante, o sistema
 mostra os dois lados e pergunta qual vale.
 
-⚠️ Contratos e comprovantes anexados ainda ficam só no aparelho onde foram enviados.
+Os contratos e comprovantes anexados também vão para a nuvem (até 10 MB cada) e abrem nos outros aparelhos.
+
+## Acesso da cerimonialista
+
+Em **Configurações → Acesso da cerimonialista**, clique em **Criar acesso**: o sistema cria uma senha
+só para ela e monta a mensagem com o link para mandar pelo WhatsApp. Ela entra em
+`https://marcelobjr1-a11y.github.io/casamento/?acesso=cerimonial`, escolhe **Sou a cerimonialista** e digita a senha.
+
+- Ela **vê**: convidados, padrinhos e cortejo, mesas, fornecedores (contatos e status), contratos, tarefas, cronograma, inspirações.
+- Ela **não vê**: valores, parcelas, orçamento, a tela Financeiro, comprovantes e orçamentos anexados — o sistema
+  manda para ela uma cópia sem essas informações.
+- É **só visualização**: ela não consegue alterar nada. Dá para trocar a senha ou desligar o acesso a qualquer momento.
+- Precisa ter rodado o arquivo `convite/supabase-cerimonialista.sql` no Supabase (uma vez).
 
 Para isso funcionar, o script `convite/supabase-setup.sql` precisa ter sido rodado (seção 5).
 Uma rotina do GitHub (`.github/workflows/manter-banco-ativo.yml`) chama o banco a cada 3 dias
@@ -59,12 +71,10 @@ Tudo é salvo **no seu próprio navegador** (localStorage). Com a sincronizaçã
 - Para voltar ao exemplo original: **Configurações → Restaurar dados de exemplo**
 - Se você limpar os dados do navegador, o sistema volta ao exemplo
 
-⚠️ **Contratos e comprovantes anexados** (em Fornecedores e Documentos)
-também ficam só neste navegador/computador — não sincronizam entre
-dispositivos nem vão para a nuvem. Se você usa o Ateliê em mais de um
-computador, anexe os arquivos sempre no mesmo. Vale a pena baixar uma
-cópia dos mais importantes de vez em quando (botão de baixar em cada
-documento).
+**Contratos e comprovantes anexados** (em Fornecedores e Documentos) ficam
+neste navegador e, com a sincronização ligada, uma cópia vai para o banco de
+dados (arquivos de até 10 MB). Vale a pena baixar uma cópia dos mais
+importantes de vez em quando (botão de baixar em cada documento).
 
 ## Site para os convidados
 

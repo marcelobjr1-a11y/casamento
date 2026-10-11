@@ -29,6 +29,8 @@ function gravarLocal(){
 }
 /* toda alteração feita pelo usuário passa por aqui: grava e avisa a nuvem */
 function salvar(){
+  /* a cerimonialista só visualiza: qualquer alteração é desfeita */
+  if(typeof modoCerimonial === "function" && modoCerimonial()){ cerDesfazerAlteracao(); return; }
   gravarLocal();
   if(typeof nuvemMarcarSujo === "function") nuvemMarcarSujo();
 }
@@ -239,6 +241,12 @@ const CAT_ICO = {
 };
 
 /* ---------------- navegação ---------------- */
+/* telas que a cerimonialista não vê (valores e configuração do site) */
+const ROTAS_SO_CASAL = ["financeiro","siteconvite"];
+function rotasVisiveis(){
+  const cer = typeof modoCerimonial === "function" && modoCerimonial();
+  return cer ? ROTAS.filter(r => !ROTAS_SO_CASAL.includes(r.id)) : ROTAS;
+}
 const ROTAS = [
   { id:"dashboard",    nome:"Visão geral",  icone:"home" },
   { id:"convidados",   nome:"Convidados",   icone:"users" },
@@ -266,7 +274,7 @@ function irPara(rota, param){
 function lerRota(){
   const partes = (location.hash || "#/dashboard").replace(/^#\//,"").split("/");
   const r = partes[0] || "dashboard";
-  App.rota = ROTAS.some(x => x.id === r) ? r : "dashboard";
+  App.rota = rotasVisiveis().some(x => x.id === r) ? r : "dashboard";
   App.param = partes[1] || null;
 }
 
@@ -559,7 +567,7 @@ function abrirBusca(){
     const t = q.trim().toLowerCase();
     let html = "";
     if(!t){
-      html = `<div class="cmdk-sec eyebrow">Ir para</div>` + ROTAS.map(r =>
+      html = `<div class="cmdk-sec eyebrow">Ir para</div>` + rotasVisiveis().map(r =>
         `<button class="cmdk-item" data-go="${r.id}">${ico(r.icone)}<span>${r.nome}</span></button>`).join("");
     } else {
       const secs = [];
@@ -572,7 +580,7 @@ function abrirBusca(){
       const tar = App.data.tarefas.filter(x => x.titulo.toLowerCase().includes(t)).slice(0,5);
       if(tar.length) secs.push([`Tarefas`, tar.map(x =>
         `<button class="cmdk-item" data-go="tarefas" data-busca="${esc(x.titulo)}">${ico("checkCircle")}<span>${esc(x.titulo)}</span><span class="meta">${x.status==="concluido" ? "concluída" : prazoTexto(x.prazo)}</span></button>`).join("")]);
-      const rt = ROTAS.filter(r => r.nome.toLowerCase().includes(t));
+      const rt = rotasVisiveis().filter(r => r.nome.toLowerCase().includes(t));
       if(rt.length) secs.push([`Páginas`, rt.map(r =>
         `<button class="cmdk-item" data-go="${r.id}">${ico(r.icone)}<span>${r.nome}</span></button>`).join("")]);
       html = secs.length
@@ -679,6 +687,7 @@ async function lerArquivoBlob(id){
   });
 }
 async function excluirArquivoBlob(id){
+  if(typeof arquivoRemoverDaNuvem === "function") arquivoRemoverDaNuvem(id);
   try{
     const db = await abrirArquivosDB();
     await new Promise((resolve, reject) => {
@@ -719,7 +728,8 @@ async function anexarArquivo(arquivo, extras){
 }
 async function baixarArquivo(docId){
   const doc = App.data.documentos.find(d => d.id === docId); if(!doc) return;
-  const blob = await lerArquivoBlob(docId);
+  let blob = await lerArquivoBlob(docId);
+  if(!blob && doc.naNuvem && typeof arquivoBaixarDaNuvem === "function") blob = await arquivoBaixarDaNuvem(doc);
   if(!blob){ toast("Este arquivo não tem os bytes salvos (documento de exemplo ou de uma versão anterior).","err"); return; }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url; a.download = doc.nome; a.click();
@@ -809,13 +819,13 @@ function sidebarHTML(){
     </div>
     <nav class="nav">
       <div class="nav-group eyebrow">Casamento</div>
-      ${ROTAS.slice(0,13).map(r => `
+      ${rotasVisiveis().filter(r => !r.especial && r.id !== "config").map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
           ${badges[r.id] ? `<span class="nav-badge">${badges[r.id]}</span>` : ""}
         </button>`).join("")}
       <div class="nav-group eyebrow">Dia do evento</div>
-      ${ROTAS.slice(13).map(r => `
+      ${rotasVisiveis().filter(r => r.especial || r.id === "config").map(r => `
         <button class="nav-item ${App.rota===r.id?"active":""} ${r.especial?"is-special":""}" data-rota="${r.id}">
           ${ico(r.icone)}<span>${r.nome}</span>
         </button>`).join("")}
@@ -849,7 +859,9 @@ function topbarHTML(){
       ${ico("search")}<span>Buscar…</span><span class="kbd">⌘K</span>
     </button>
     <div class="topbar-spacer"></div>
-    <button class="btn btn-primary" data-adicionar>${ico("plus")}<span>Adicionar</span></button>
+    ${typeof modoCerimonial === "function" && modoCerimonial()
+      ? `<span class="badge gold" title="Acesso da cerimonialista: só visualização">${ico("eye")}Só visualização</span>`
+      : `<button class="btn btn-primary" data-adicionar>${ico("plus")}<span>Adicionar</span></button>`}
     ${typeof nuvemBotaoHTML === "function" ? nuvemBotaoHTML() : ""}
     <button class="icon-btn" data-notificacoes aria-label="Notificações">
       ${ico("bell")}${naoLidas ? `<span class="dot">${naoLidas}</span>` : ""}
@@ -865,6 +877,7 @@ function topbarHTML(){
 const VIEWS = {};
 function render(){
   const app = $("#app");
+  document.body.classList.toggle("modo-cerimonial", typeof modoCerimonial === "function" && modoCerimonial());
   app.innerHTML = sidebarHTML() + `<div class="main">${topbarHTML()}<main class="view" id="view"></main></div>`
     + `<div class="sidebar-scrim" data-menu-fechar></div>`;
   const view = $("#view");

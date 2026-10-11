@@ -21,18 +21,25 @@ const Nuvem = {
   ultima: null,
   ocupado: false,
   timer: null,
-  adiado: false             // o usuário fechou o aviso de conflito sem escolher
+  adiado: false,            // o usuário fechou o aviso de conflito sem escolher
+  papel: "casal",           // casal | cerimonial (acesso só para ver, sem valores)
+  senhaCer: ""              // senha da cerimonialista (só no aparelho dela)
 };
+function modoCerimonial(){ return Nuvem.papel === "cerimonial"; }
+/* este aparelho está ligado à nuvem (como casal ou como cerimonialista)? */
+function nuvemConectado(){ return modoCerimonial() ? !!Nuvem.senhaCer : siteConfigurado(); }
 
 /* ---------- metadados guardados só neste aparelho ---------- */
 function nuvemLerMeta(){
   try{
     const m = JSON.parse(localStorage.getItem(NUVEM_KEY) || "null");
-    if(m){ Nuvem.base = m.base || null; Nuvem.sujo = !!m.sujo; Nuvem.ultima = m.ultima || null; }
+    if(m){ Nuvem.base = m.base || null; Nuvem.sujo = !!m.sujo; Nuvem.ultima = m.ultima || null;
+           Nuvem.papel = m.papel === "cerimonial" ? "cerimonial" : "casal"; Nuvem.senhaCer = m.senhaCer || ""; }
   }catch(_){ /* ignora */ }
 }
 function nuvemGravarMeta(){
-  try{ localStorage.setItem(NUVEM_KEY, JSON.stringify({ base:Nuvem.base, sujo:Nuvem.sujo, ultima:Nuvem.ultima })); }
+  try{ localStorage.setItem(NUVEM_KEY, JSON.stringify({ base:Nuvem.base, sujo:Nuvem.sujo, ultima:Nuvem.ultima,
+    papel:Nuvem.papel, senhaCer:Nuvem.senhaCer })); }
   catch(_){ /* ignora */ }
 }
 
@@ -54,7 +61,7 @@ function nuvemDefinir(estado, erro){
   }
 }
 function nuvemBotaoHTML(){
-  if(!siteConfigurado() && Nuvem.estado !== "desconectado") Nuvem.estado = "desconectado";
+  if(!nuvemConectado() && Nuvem.estado !== "desconectado") Nuvem.estado = "desconectado";
   return `<button class="icon-btn nuvem-btn" data-nuvem data-estado="${Nuvem.estado}" aria-label="Sincronização"
     title="${esc(NUVEM_TEXTOS[Nuvem.estado] || "")}">${ico("cloud")}<span class="nuvem-dot"></span></button>`;
 }
@@ -116,6 +123,7 @@ async function nuvemEnviar(forcar){
     Nuvem.sujo = (Nuvem.versao !== versaoEnviada);   // se editou durante o envio, ainda há o que enviar
     Nuvem.ultima = new Date().toISOString();
     nuvemGravarMeta();
+    if(typeof cerEnviarVisao === "function") cerEnviarVisao();
     return "enviou";
   }
   return "conflito";
@@ -124,6 +132,7 @@ async function nuvemEnviar(forcar){
 /* ---------- o ciclo principal ---------- */
 async function nuvemSincronizar(opcoes){
   const manual = !!(opcoes && opcoes.manual);
+  if(modoCerimonial()) return cerSincronizar(manual);
   if(!siteConfigurado()){ nuvemDefinir("desconectado"); return { ok:false, motivo:"desconectado" }; }
   if(Nuvem.ocupado) return { ok:false, motivo:"ocupado" };
   if(Nuvem.adiado && !manual) return { ok:false, motivo:"adiado" };
@@ -175,6 +184,7 @@ async function nuvemSincronizar(opcoes){
       render();
       toast("Dados atualizados com as alterações feitas em outro aparelho.", "ok");
     }
+    if(typeof cerDepoisDeSincronizar === "function") cerDepoisDeSincronizar(manual);
     return { ok:true, resultado };
   }catch(err){
     Nuvem.ocupado = false;
@@ -185,6 +195,7 @@ async function nuvemSincronizar(opcoes){
 
 /* marcado por salvar(): há alterações locais para enviar */
 function nuvemMarcarSujo(){
+  if(modoCerimonial()) return;
   Nuvem.versao++;
   if(!siteConfigurado()) return;
   Nuvem.sujo = true;
@@ -196,27 +207,31 @@ function nuvemMarcarSujo(){
 
 function nuvemIniciar(){
   nuvemLerMeta();
-  nuvemDefinir(siteConfigurado() ? (Nuvem.sujo ? "pendente" : "ok") : "desconectado");
-  if(siteConfigurado()) nuvemSincronizar({});
+  nuvemDefinir(nuvemConectado() ? (Nuvem.sujo ? "pendente" : "ok") : "desconectado");
+  if(nuvemConectado()) nuvemSincronizar({});
+  else if(/acesso=cerimonial/.test(location.search + location.hash)) setTimeout(() => abrirConectarNuvem("cerimonial"), 300);
   setInterval(() => { if(document.visibilityState === "visible") nuvemSincronizar({}); }, 45000);
   document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") nuvemSincronizar({}); });
   window.addEventListener("online", () => nuvemSincronizar({}));
 }
 
 /* ---------- telas: conectar, conflito, status ---------- */
-function abrirConectarNuvem(){
+function abrirConectarNuvem(modoInicial){
   const c = App.data.casal;
+  let modo = modoInicial === "cerimonial" ? "cerimonial" : "casal";
   modal({
     titulo: "Conectar este aparelho",
-    sub: "Para ver e editar os mesmos dados em qualquer computador ou celular.",
+    sub: "Para ver os mesmos dados em qualquer computador ou celular.",
     tamanho: "narrow",
     corpo: `
-      <p class="t-sm t-ink3 mb-16" style="line-height:1.6">
-        Digite a <strong>senha do painel</strong> — a mesma que vocês definiram ao criar o banco de dados.
-        Se já existirem dados salvos, eles aparecem aqui na hora.</p>
+      <div class="seg mb-16" style="display:flex">
+        <button class="${modo==="casal"?"active":""}" data-modo-con="casal" style="flex:1">Sou um dos noivos</button>
+        <button class="${modo==="cerimonial"?"active":""}" data-modo-con="cerimonial" style="flex:1">Sou a cerimonialista</button>
+      </div>
+      <p class="t-sm t-ink3 mb-16" style="line-height:1.6" id="nv-explica"></p>
       <div class="field"><label>Senha</label>
-        <input class="input" id="nv-senha" type="password" autocomplete="current-password" placeholder="Senha do painel"></div>
-      <details class="mt-16"><summary class="t-xs t-muted" style="cursor:pointer">Opções avançadas</summary>
+        <input class="input" id="nv-senha" type="password" autocomplete="current-password"></div>
+      <details class="mt-16" id="nv-avancado"><summary class="t-xs t-muted" style="cursor:pointer">Opções avançadas</summary>
         <div class="field mt-12"><label>URL do Supabase</label>
           <input class="input" id="nv-url" value="${esc(c.supabaseUrl || NUVEM_PADRAO.url)}"></div>
         <div class="field mt-12"><label>Chave pública</label>
@@ -228,15 +243,35 @@ function abrirConectarNuvem(){
     aoAbrir(w){
       const senhaEl = w.querySelector("#nv-senha");
       const erroEl = w.querySelector("#nv-erro");
+      const aplicarModo = () => {
+        w.querySelectorAll("[data-modo-con]").forEach(b => b.classList.toggle("active", b.dataset.modoCon === modo));
+        w.querySelector("#nv-explica").innerHTML = modo === "casal"
+          ? "Digite a <strong>senha do painel</strong> — a mesma que vocês definiram ao criar o banco de dados. Se já existirem dados salvos, eles aparecem aqui na hora."
+          : "Digite a <strong>senha que os noivos te enviaram</strong>. Você vai ver convidados, padrinhos, fornecedores, contratos, tarefas e o cronograma — só para consulta.";
+        senhaEl.placeholder = modo === "casal" ? "Senha do painel" : "Senha da cerimonialista";
+        w.querySelector("#nv-avancado").style.display = modo === "casal" ? "" : "none";
+        erroEl.style.display = "none";
+      };
+      aplicarModo();
+      w.querySelectorAll("[data-modo-con]").forEach(b => b.onclick = () => { modo = b.dataset.modoCon; aplicarModo(); senhaEl.focus(); });
       const go = async () => {
         const senha = senhaEl.value;
         if(!senha){ erroEl.textContent = "Digite a senha."; erroEl.style.display = ""; return; }
+        const btn = w.querySelector("#nv-conectar");
+        btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Conectando…`;
+
+        if(modo === "cerimonial"){
+          const r = await cerConectar(senha);
+          if(r.ok){ fecharModal(); render(); toast("Pronto! Você está vendo o casamento de " + App.data.casal.noiva + " e " + App.data.casal.noivo + ".", "ok"); return; }
+          btn.disabled = false; btn.textContent = "Conectar";
+          erroEl.textContent = r.motivo; erroEl.style.display = "";
+          return;
+        }
+
         const anterior = { u:c.supabaseUrl, k:c.supabaseKey, s:c.supabaseSenha };
         c.supabaseUrl = w.querySelector("#nv-url").value.trim() || NUVEM_PADRAO.url;
         c.supabaseKey = w.querySelector("#nv-key").value.trim() || NUVEM_PADRAO.key;
         c.supabaseSenha = senha;
-        const btn = w.querySelector("#nv-conectar");
-        btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Conectando…`;
         const r = await nuvemSincronizar({ manual:true });
         if(r.ok || r.motivo === "conflito"){
           gravarLocal();
@@ -254,6 +289,7 @@ function abrirConectarNuvem(){
       };
       w.querySelector("#nv-conectar").onclick = go;
       senhaEl.addEventListener("keydown", e => { if(e.key === "Enter") go(); });
+      setTimeout(() => senhaEl.focus(), 50);
     }
   });
 }
@@ -299,17 +335,17 @@ function abrirConflitoNuvem(remoto){
 }
 
 function abrirStatusNuvem(alvo){
-  const conectado = siteConfigurado();
+  const conectado = nuvemConectado();
   const ultima = Nuvem.ultima ? new Date(Nuvem.ultima).toLocaleString("pt-BR", { dateStyle:"short", timeStyle:"short" }) : null;
   const html = `
     <div style="padding:14px 16px;border-bottom:1px solid var(--line-2)">
-      <strong style="font-size:13px">Sincronização entre aparelhos</strong>
+      <strong style="font-size:13px">${modoCerimonial() ? "Acesso da cerimonialista" : "Sincronização entre aparelhos"}</strong>
       <div class="t-xs t-muted mt-4">${esc(NUVEM_TEXTOS[Nuvem.estado])}${Nuvem.estado === "erro" && Nuvem.erro ? ` — ${esc(Nuvem.erro)}` : ""}</div>
       ${ultima ? `<div class="t-xs t-muted">Última vez: ${esc(ultima)}</div>` : ""}
     </div>
     <div style="padding:6px">
       ${conectado
-        ? `<button class="pop-item" data-nuvem-agora>${ico("refresh")}<span>Sincronizar agora</span></button>
+        ? `<button class="pop-item" data-nuvem-agora>${ico("refresh")}<span>${modoCerimonial() ? "Atualizar agora" : "Sincronizar agora"}</span></button>
            <button class="pop-item" data-ir="config">${ico("settings")}<span>Configurações</span></button>`
         : `<button class="pop-item" data-conectar-nuvem>${ico("globe")}<span>Conectar este aparelho</span></button>`}
     </div>`;
@@ -330,10 +366,10 @@ function abrirStatusNuvem(alvo){
 
 /* aviso no painel para quem abre o Ateliê num aparelho novo */
 function nuvemBannerHTML(){
-  if(siteConfigurado() || !nuvemEstaVazio()) return "";
+  if(nuvemConectado() || !nuvemEstaVazio()) return "";
   return `<div class="alert info mb-20">${ico("globe")}
     <div><div class="a-title">Já usa o Ateliê em outro aparelho?</div>
-    <div class="a-desc">Conecte com a senha do painel para carregar aqui os mesmos dados.</div></div>
+    <div class="a-desc">Conecte com a senha do painel para carregar aqui os mesmos dados. É a cerimonialista? Use a senha que os noivos te enviaram.</div></div>
     <span class="a-act"><button class="btn btn-sm btn-primary" data-conectar-nuvem>Conectar</button></span></div>`;
 }
 
@@ -349,7 +385,7 @@ function nuvemCardConfigHTML(){
         Deixa vocês dois verem e editarem os <strong>mesmos dados</strong> (convidados, fornecedores, tarefas, financeiro…)
         em qualquer computador ou celular. Usa a mesma conexão e senha do site dos convidados.</p>
       ${conectado ? `<p class="t-xs t-muted mt-12">${esc(NUVEM_TEXTOS[Nuvem.estado])}${ultima ? ` · última vez ${esc(ultima)}` : ""}</p>` : ""}
-      <p class="t-xs t-muted mt-8" style="line-height:1.55">Contratos e comprovantes anexados ainda ficam só no aparelho onde foram enviados.</p>
+      <p class="t-xs t-muted mt-8" style="line-height:1.55">Contratos e comprovantes anexados também vão para a nuvem e abrem em qualquer aparelho conectado.</p>
     </div>
     <div class="card-foot between">
       <span></span>
@@ -370,11 +406,12 @@ document.addEventListener("click", async e => {
   if(e.target.closest("[data-conectar-nuvem]") && !e.target.closest(".pop")){ abrirConectarNuvem(); return; }
   if(e.target.closest("[data-nuvem-agora]") && !e.target.closest(".pop")){
     const r = await nuvemSincronizar({ manual:true });
-    if(r.ok){ toast(r.resultado === "baixou" ? "Dados atualizados." : "Tudo sincronizado.", "ok"); if(App.rota === "config") render(); }
+    if(r.ok){ toast(r.resultado === "baixou" ? "Dados atualizados." : "Tudo sincronizado.", "ok"); if(App.rota === "config" && r.resultado !== "baixou") render(); }
     else if(r.motivo !== "conflito") toast("Não foi possível sincronizar: " + nuvemMensagemErro(r.motivo), "err");
     return;
   }
   if(e.target.closest("[data-desconectar-nuvem]")){
+    if(modoCerimonial()){ cerDesconectar(); return; }
     confirmar("Desconectar este aparelho",
       "Os dados continuam aqui, mas param de sincronizar com a nuvem e com os outros aparelhos. Dá para conectar de novo quando quiser.",
       () => {
@@ -386,3 +423,6 @@ document.addEventListener("click", async e => {
       }, "Desconectar");
   }
 });
+
+/* lê já no carregamento, para a navegação saber se é a cerimonialista */
+nuvemLerMeta();

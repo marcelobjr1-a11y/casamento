@@ -15,7 +15,7 @@ VIEWS.fornecedores = function(){
   <div class="page-head">
     <div>
       <h1 class="page-title">Fornecedores</h1>
-      <p class="page-sub"><b>${m.contratados.length}</b> contratados · ${money(m.valorContratado)} em contratos fechados.</p>
+      <p class="page-sub"><b>${m.contratados.length}</b> contratados${modoCerimonial() ? "" : ` · ${money(m.valorContratado)} em contratos fechados`}.</p>
     </div>
     <div class="page-actions">
       <div class="seg">
@@ -29,8 +29,8 @@ VIEWS.fornecedores = function(){
   <div class="grid g-4 mb-20">
     ${miniStat("Contratados", m.contratados.length, "de "+d.fornecedores.length+" cadastrados", "briefcase","g2")}
     ${miniStat("Em negociação", d.fornecedores.filter(x => x.status==="Em negociação").length, "aguardando decisão", "chat","g4")}
-    ${miniStat("Valor contratado", money(m.valorContratado), "em "+m.contratados.length+" contratos", "dollar")}
-    ${miniStat("Já pago", money(m.valorPago), pct(m.valorPago,m.valorContratado)+"% do contratado", "card","g3")}
+    ${modoCerimonial() ? miniStat("Concluídos", d.fornecedores.filter(x => x.status==="Concluído").length, "serviços entregues", "checkCircle","g3") : miniStat("Valor contratado", money(m.valorContratado), "em "+m.contratados.length+" contratos", "dollar")}
+    ${modoCerimonial() ? miniStat("Contratos", App.data.documentos.filter(x => x.cat==="Contratos").length, "anexados em Documentos", "file") : miniStat("Já pago", money(m.valorPago), pct(m.valorPago,m.valorContratado)+"% do contratado", "card","g3")}
   </div>
 
   <div class="card mb-20">
@@ -91,7 +91,7 @@ VIEWS.fornecedores = function(){
     </div>`
     : `<div class="card"><div class="table-wrap"><table class="tbl">
         <thead><tr><th style="width:26%">Fornecedor</th><th>Categoria</th><th>Contato</th><th>Status</th>
-        <th class="right">Contratado</th><th class="right">Pago</th><th class="right">Restante</th><th></th></tr></thead>
+        ${modoCerimonial() ? `<th></th>` : `<th class="right">Contratado</th><th class="right">Pago</th><th class="right">Restante</th><th></th>`}</tr></thead>
         <tbody>${lista.map(x => `
           <tr data-forn="${x.id}" style="cursor:pointer">
             <td><span class="cell-name">
@@ -100,9 +100,9 @@ VIEWS.fornecedores = function(){
             <td class="t-sm t-ink3">${esc(x.cat)}</td>
             <td class="t-sm t-ink3 ell">${esc(x.contato)}</td>
             <td>${badgeStatusForn(x.status)}</td>
-            <td class="right tnum">${x.valor?money(x.valor):"—"}</td>
+            ${modoCerimonial() ? "" : `<td class="right tnum">${x.valor?money(x.valor):"—"}</td>
             <td class="right tnum t-ink3">${x.pago?money(x.pago):"—"}</td>
-            <td class="right tnum" style="${x.valor-x.pago>0?"color:var(--warn)":"color:var(--muted)"}">${x.valor?money(x.valor-x.pago):"—"}</td>
+            <td class="right tnum" style="${x.valor-x.pago>0?"color:var(--warn)":"color:var(--muted)"}">${x.valor?money(x.valor-x.pago):"—"}</td>`}
             <td><span class="row-actions">
               <button class="mini-btn" data-editar-forn="${x.id}">${ico("edit")}</button>
               <button class="mini-btn danger" data-excluir-forn="${x.id}">${ico("trash")}</button>
@@ -212,7 +212,7 @@ function abrirFornecedor(id){
       <div class="sep"></div>
       <div class="between mb-8">
         <span class="eyebrow" style="margin:0">Documentos (${docs.length})</span>
-        <button class="link" data-anexar-contrato>${ico("upload")}Anexar contrato</button>
+        ${modoCerimonial() ? "" : `<button class="link" data-anexar-contrato>${ico("upload")}Anexar contrato</button>`}
       </div>
       ${docs.length ? docs.map(dd => `
         <div class="list-row">
@@ -225,7 +225,8 @@ function abrirFornecedor(id){
           <button class="mini-btn danger" data-excluir-doc-forn="${dd.id}" title="Excluir">${ico("trash")}</button>
         </div>`).join("")
         : `<p class="t-sm t-muted" style="padding:6px 0">Nenhum documento anexado ainda.</p>`}`,
-    rodape:`<button class="btn btn-danger" data-excluir>Excluir</button>
+    rodape: modoCerimonial() ? `<div class="grow"></div><button class="btn" data-fechar>Fechar</button>` :
+           `<button class="btn btn-danger" data-excluir>Excluir</button>
             <div class="grow"></div>
             <button class="btn" data-fechar>Fechar</button>
             <button class="btn" data-pagamento>${ico("plus")}Pagamento</button>
@@ -1222,7 +1223,7 @@ function abrirFormDocumento(catPadrao, fornPadrao){
     corpo:`<form id="form-doc" class="grid" style="gap:16px">
       <div class="field"><label>Arquivo</label>
         <input class="input" type="file" id="arquivo-doc" style="padding:8px 10px;height:auto">
-        <span class="hint">O arquivo fica guardado neste navegador — não é enviado para nenhum servidor.</span></div>
+        <span class="hint">${siteConfigurado() ? "O arquivo fica guardado neste aparelho e uma cópia vai para a nuvem, para abrir nos outros aparelhos." : "O arquivo fica guardado neste navegador. Conecte a sincronização para ele abrir também nos outros aparelhos."}</span></div>
       <div class="field"><label>Nome</label>
         <input class="input" name="nome" placeholder="Ex.: Contrato — Buffet La Maison.pdf"></div>
       <div class="field"><label>Categoria</label>
@@ -1766,7 +1767,7 @@ VIEWS.grandedia = function(){
           ${linhaInfo("Convidados", String(m.pessoas))}
           ${linhaInfo("Mesas", String(d.mesas.length))}
           ${linhaInfo("Fornecedores", String(m.contratados.length))}
-          ${linhaInfo("A pagar hoje", money(pagtosHoje.reduce((a,p)=>a+p.valor,0)))}
+          ${modoCerimonial() ? linhaInfo("Padrinhos", String(d.convidados.filter(c => c.grupo === "padrinhos").length)) : linhaInfo("A pagar hoje", money(pagtosHoje.reduce((a,p)=>a+p.valor,0)))}
         </div>
       </div>
     </div>
@@ -1864,6 +1865,7 @@ POS_RENDER.grandedia = function(){
    CONFIGURAÇÕES
    ========================================================= */
 VIEWS.config = function(){
+  if(modoCerimonial()) return cerConfigViewHTML();
   const d = App.data;
   return `
   <div class="page-head">
@@ -1908,6 +1910,7 @@ VIEWS.config = function(){
       </div>
 
       ${typeof nuvemCardConfigHTML === "function" ? nuvemCardConfigHTML() : ""}
+      ${typeof cerCardConfigHTML === "function" ? cerCardConfigHTML() : ""}
 
       <div class="card">
         <div class="card-head"><h3>Site dos convidados</h3>

@@ -15,6 +15,8 @@ function moodFundo(i){ return PALETAS[((i-1) % 8) + 1]; }
    ========================================================= */
 VIEWS.dashboard = function(){
   const d = App.data, m = metricas();
+  const cer = modoCerimonial();
+  const contratos = d.documentos.filter(x => x.cat === "Contratos");
 
   const proximasTarefas = d.tarefas
     .filter(t => t.status !== "concluido")
@@ -26,7 +28,7 @@ VIEWS.dashboard = function(){
   const compromissos = [];
 
   const alertas = [];
-  if(m.venc7.length) alertas.push(["warn","alert",`${m.venc7.length} pagamento${m.venc7.length>1?"s vencem":" vence"} nos próximos 7 dias`, money(m.venc7.reduce((a,p)=>a+p.valor,0)) + " no total.", "financeiro"]);
+  if(m.venc7.length && !cer) alertas.push(["warn","alert",`${m.venc7.length} pagamento${m.venc7.length>1?"s vencem":" vence"} nos próximos 7 dias`, money(m.venc7.reduce((a,p)=>a+p.valor,0)) + " no total.", "financeiro"]);
   if(m.pendentes.length) alertas.push(["info","info",`${m.pendentes.length} convidados ainda não responderam`, "Envie um lembrete de RSVP.", "rsvp"]);
   if(m.contratosPend.length) alertas.push(["danger","alert",`${m.contratosPend.length} contratos aguardam assinatura`, m.contratosPend.map(c => c.nome.replace(/^Contrato — /,"").replace(/\.pdf$/,"")).join(" e ") + ".", "documentos"]);
   if(m.atrasadas.length) alertas.push(["danger","clock",`${m.atrasadas.length} tarefa${m.atrasadas.length>1?"s atrasadas":" atrasada"}`, "Reveja os prazos com a equipe.", "tarefas"]);
@@ -46,12 +48,12 @@ VIEWS.dashboard = function(){
   return `
   <div class="page-head">
     <div>
-      <h1 class="page-title">Olá, ${esc(d.casal.noiva)} e ${esc(d.casal.noivo)}.</h1>
+      <h1 class="page-title">${cer ? `Casamento de ${esc(d.casal.noiva)} e ${esc(d.casal.noivo)}` : `Olá, ${esc(d.casal.noiva)} e ${esc(d.casal.noivo)}.`}</h1>
       <p class="page-sub">${d.casal.data ? `${contagem().frase} — ${fmtDataExt(d.casal.data)}.` : `${contagem().frase} para ver a contagem regressiva e o roteiro do dia.`}</p>
     </div>
     <div class="page-actions">
       <button class="btn" data-rota="cronograma">${ico("calendar")}Ver cronograma</button>
-      <button class="btn btn-primary" data-adicionar>${ico("plus")}Adicionar</button>
+      ${cer ? "" : `<button class="btn btn-primary" data-adicionar>${ico("plus")}Adicionar</button>`}
     </div>
   </div>
 
@@ -59,7 +61,9 @@ VIEWS.dashboard = function(){
 
   <div class="grid g-4 mb-20">
     ${cardStat("users","", "Convidados", `${m.confirmados.length + m.acomp}<small> / ${m.totalGeral}</small>`, m.acompTotal ? `confirmados · inclui acompanhantes` : "confirmados", m.confirmados.length + m.acomp, m.totalGeral, "ok", "convidados")}
-    ${cardStat("dollar","g4","Orçamento", money(m.valorContratado), `de ${money(m.orcamento)} previstos`, m.valorContratado, m.orcamento, "", "financeiro")}
+    ${cer
+      ? cardStat("file","g4","Contratos", contratos.filter(x => x.assinado).length, `assinados de ${contratos.length}`, contratos.filter(x => x.assinado).length, contratos.length, "ok", "documentos")
+      : cardStat("dollar","g4","Orçamento", money(m.valorContratado), `de ${money(m.orcamento)} previstos`, m.valorContratado, m.orcamento, "", "financeiro")}
     ${cardStat("briefcase","g3","Fornecedores", m.contratados.length, "contratados", m.contratados.length, d.fornecedores.length, "", "fornecedores",
         `<div class="avatar-stack">${m.contratados.slice(0,4).map(f => avatarHTML(f.contato, "sm", f.id)).join("")}
          ${m.contratados.length > 4 ? `<span class="avatar-more">+${m.contratados.length-4}</span>` : ""}</div>`)}
@@ -147,7 +151,7 @@ VIEWS.dashboard = function(){
           <div class="card-foot"><button class="link" data-rota="convidados">Ver lista completa</button></div>
         </div>
 
-        <div class="card">
+        ${cer ? "" : `<div class="card">
           <div class="card-head"><h3>Orçamento por categoria</h3>
             <button class="link" data-rota="financeiro">Ver detalhes ${ico("chevronRight")}</button></div>
           <div class="card-body">
@@ -167,7 +171,7 @@ VIEWS.dashboard = function(){
               <strong class="num" style="font-size:20px">${money(m.valorContratado)}</strong>
             </div>
           </div>
-        </div>
+        </div>`}
       </div>
 
       <div class="card">
@@ -215,7 +219,7 @@ VIEWS.dashboard = function(){
         ${compromissos.length ? `<div class="card-foot"><button class="link" data-rota="cronograma">Ver todos</button></div>` : ""}
       </div>
 
-      <div class="card">
+      ${cer ? "" : `<div class="card">
         <div class="card-head"><h3>Próximos pagamentos</h3></div>
         <div class="card-body" style="padding-top:10px">
           ${proximosPagtos.map(p => {
@@ -236,7 +240,7 @@ VIEWS.dashboard = function(){
           </div>
         </div>
         <div class="card-foot"><button class="link" data-rota="financeiro">Ver todos os pagamentos</button></div>
-      </div>
+      </div>`}
 
       <div class="card">
         <div class="card-head"><h3>Inspirações salvas</h3>
@@ -850,13 +854,14 @@ function caixaPadrinhosHTML(padrinhos){
   const montadas = padrinhos.filter(p => cx.status[p.id] === "montada" || cx.status[p.id] === "entregue").length;
   const entregues = padrinhos.filter(p => cx.status[p.id] === "entregue").length;
   const jaUsados = cx.itens.map(i => i.nome.toLowerCase());
-  const sugestoes = CAIXA_SUGESTOES.filter(s => !jaUsados.includes(s.toLowerCase()));
+  const sugestoes = modoCerimonial() ? [] : CAIXA_SUGESTOES.filter(s => !jaUsados.includes(s.toLowerCase()));
+  const verValores = !modoCerimonial();
 
   return `
   <div class="grid g-4 mb-20">
     ${miniStat("Itens", cx.itens.length, comprados + " já comprados", "gift")}
-    ${miniStat("Custo por caixa", moneyF(custoCaixa), "somando todos os itens", "dollar","g3")}
-    ${miniStat("Total", moneyF(custoCaixa * nCaixas), nCaixas + (nCaixas === 1 ? " caixa" : " caixas"), "card","g4")}
+    ${verValores ? miniStat("Custo por caixa", moneyF(custoCaixa), "somando todos os itens", "dollar","g3") : miniStat("Por caixa", cx.itens.reduce((s,i) => s + (Number(i.qtd)||1), 0), "unidades em cada caixa", "list","g3")}
+    ${verValores ? miniStat("Total", moneyF(custoCaixa * nCaixas), nCaixas + (nCaixas === 1 ? " caixa" : " caixas"), "card","g4") : miniStat("Caixas", nCaixas, "para montar", "card","g4")}
     ${miniStat("Entregues", entregues + "<small>/" + padrinhos.length + "</small>", montadas + " montadas", "checkCircle","g2")}
   </div>
 
@@ -867,7 +872,7 @@ function caixaPadrinhosHTML(padrinhos){
     <div class="card-body" style="padding-top:8px">
       <div class="table-wrap"><table class="tbl">
         <thead><tr><th style="width:36px"></th><th>Item</th><th class="right">Por caixa</th>
-          <th class="right">Preço un.</th><th class="right">Comprar</th><th class="right">Total</th><th style="width:90px"></th></tr></thead>
+          ${verValores ? `<th class="right">Preço un.</th>` : ""}<th class="right">Comprar</th>${verValores ? `<th class="right">Total</th><th style="width:90px"></th>` : ""}</tr></thead>
         <tbody>
           ${cx.itens.map(i => {
             const q = Number(i.qtd)||1, p = Number(i.preco)||0;
@@ -876,12 +881,12 @@ function caixaPadrinhosHTML(padrinhos){
               <td><div class="nm" style="font-weight:520${i.comprado?";text-decoration:line-through;color:var(--muted)":""}">${esc(i.nome)}</div>
                 ${i.onde || i.obs ? `<div class="t-xs t-muted">${esc([i.onde, i.obs].filter(Boolean).join(" · "))}</div>` : ""}</td>
               <td class="right">${q}</td>
-              <td class="right">${p ? moneyF(p) : "—"}</td>
+              ${verValores ? `<td class="right">${p ? moneyF(p) : "—"}</td>` : ""}
               <td class="right">${q * nCaixas} un.</td>
-              <td class="right">${p ? moneyF(p * q * nCaixas) : "—"}</td>
+              ${verValores ? `<td class="right">${p ? moneyF(p * q * nCaixas) : "—"}</td>
               <td class="right"><span class="center gap-6" style="justify-content:flex-end">
                 <button class="btn btn-sm" data-editar-item="${i.id}" title="Editar">${ico("edit")}</button>
-                <button class="btn btn-sm btn-danger" data-remover-item="${i.id}" title="Remover">${ico("trash")}</button></span></td>
+                <button class="btn btn-sm btn-danger" data-remover-item="${i.id}" title="Remover">${ico("trash")}</button></span></td>` : ""}
             </tr>`;}).join("")}
         </tbody>
       </table></div>
@@ -1198,6 +1203,7 @@ POS_RENDER.padrinhos = function(){
   let arrastando = null;
   v.addEventListener("dragstart", e => {
     const it = e.target.closest("[data-arrastar]"); if(!it) return;
+    if(modoCerimonial()){ e.preventDefault(); return; }
     arrastando = it.dataset.arrastar;
     it.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
@@ -1226,7 +1232,7 @@ POS_RENDER.padrinhos = function(){
 
   /* segurar o número e arrastar para mudar a ordem (mouse e toque) */
   v.addEventListener("pointerdown", e => {
-    const h = e.target.closest("[data-segurar]"); if(!h || e.button > 0) return;
+    const h = e.target.closest("[data-segurar]"); if(!h || e.button > 0 || modoCerimonial()) return;
     e.preventDefault();
     const linha = h.closest(".entrada"), aisle = linha.parentElement;
     const inicioY = e.clientY;

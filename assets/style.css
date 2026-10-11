@@ -793,3 +793,22 @@ tr:hover .row-actions{ opacity:1; }
   .view{ padding:0; }
   .card{ box-shadow:none; border-color:#ddd; break-inside:avoid; }
 }
+
+/* ---------- Acesso da cerimonialista: só visualização ---------- */
+body.modo-cerimonial .page-actions .btn-primary,
+body.modo-cerimonial .row-actions,
+body.modo-cerimonial .mini-btn,
+body.modo-cerimonial .card .btn-danger:not([data-desconectar-nuvem]),
+body.modo-cerimonial [data-novo-padrinho],
+body.modo-cerimonial [data-editar-padrinho],
+body.modo-cerimonial [data-formar-pares],
+body.modo-cerimonial [data-sugestao-cortejo],
+body.modo-cerimonial .en-x,
+body.modo-cerimonial .entrada-nova,
+body.modo-cerimonial .en-slot.vazio,
+body.modo-cerimonial #cx-qtd,
+body.modo-cerimonial [data-upload],
+body.modo-cerimonial [data-plano]{ display:none !important; }
+body.modo-cerimonial .en-num{ cursor:default; }
+body.modo-cerimonial .en-grip{ display:none; }
+body.modo-cerimonial .en-slot{ cursor:default; }
