@@ -365,6 +365,8 @@ VIEWS.convidados = function(){
     ${miniStat("Recusados", m.recusados.length, "não poderão ir", "x","g3")}
   </div>
 
+  ${m.total ? prioridadesHTML() : ""}
+
   ${m.totalGeral ? `
   <div class="card mb-20">
     <div class="card-body">
@@ -402,6 +404,13 @@ VIEWS.convidados = function(){
           <select class="select" id="filtro-grupo" style="width:auto;min-width:180px">
             ${filtrosGrupo.map(([id,nome,q]) => `<option value="${id}" ${f.grupo===id?"selected":""}>${esc(nome)}${q?` (${q})`:""}</option>`).join("")}
           </select>
+          <select class="select" id="filtro-prio" style="width:auto;min-width:160px">
+            <option value="todas">Todas as prioridades</option>
+            ${PRIORIDADES.map(p => `<option value="${p.id}" ${String(f.prioridade)===String(p.id)?"selected":""}>${p.letra} · ${p.nome}</option>`).join("")}
+            <option value="0" ${String(f.prioridade)==="0"?"selected":""}>Sem prioridade</option>
+          </select>
+          ${lista.length && (f.grupo !== "todos" || f.busca || f.rsvp !== "todos" || (f.prioridade && f.prioridade !== "todas"))
+            ? `<button class="btn btn-sm" data-prio-todos title="Define a mesma prioridade para todos os ${lista.length} convidados filtrados">${ico("list")}Prioridade p/ estes ${lista.length}</button>` : ""}
         </div>
       </div>
       <div class="chips mb-16">
@@ -414,7 +423,7 @@ VIEWS.convidados = function(){
     <div class="table-wrap">
       <table class="tbl">
         <thead><tr>
-          <th style="width:30%">Convidado</th><th>Grupo</th><th>Telefone</th>
+          <th style="width:28%">Convidado</th><th>Prioridade</th><th>Grupo</th><th>Telefone</th>
           <th class="right">Pessoas</th><th>RSVP</th><th>Mesa</th><th>Restrição</th><th></th>
         </tr></thead>
         <tbody>
@@ -428,6 +437,7 @@ VIEWS.convidados = function(){
                   <span class="nm ell" style="display:block">${esc(c.nome)}${c.faixa!=="adulto"?` <span class="badge" style="height:18px;font-size:10px">${faixa(c.faixa).curto}</span>`:""}</span>
                   ${acomp.length ? `<span class="t-xs t-muted ell" style="display:block">com ${acomp.map(a => esc(a.nome || "acompanhante") + (a.faixa!=="adulto" ? ` (${faixa(a.faixa).curto})` : "")).join(", ")}</span>` : ""}
                 </span></span></td>
+              <td class="nowrap">${badgePrioridadeConv(c, !modoCerimonial())}</td>
               <td class="t-sm t-ink3 nowrap">${esc(nomeGrupo(c.grupo))}</td>
               <td class="t-sm t-ink3 tnum nowrap">${esc(c.telefone)}</td>
               <td class="right t-sm tnum">${qtdPessoas(c)}</td>
@@ -476,8 +486,77 @@ function filtrarConvidados(){
     if(f.rsvp !== "todos" && c.rsvp !== f.rsvp) return false;
     if(f.grupo === "criancas"){ if(!pessoasDoConvidado(c).some(p => p.faixa !== "adulto")) return false; }
     else if(f.grupo !== "todos" && c.grupo !== f.grupo) return false;
+    if(f.prioridade !== undefined && f.prioridade !== "todas" && String(c.prioridade || 0) !== String(f.prioridade)) return false;
     if(q && !(c.nome.toLowerCase().includes(q) || c.telefone.includes(q))) return false;
     return true;
+  });
+}
+
+/* ---------- prioridade dos convidados (lista A, B, C) ---------- */
+const PRIORIDADES = [
+  { id:1, letra:"A", nome:"Essencial",  desc:"não pode faltar",          tom:"ok"   },
+  { id:2, letra:"B", nome:"Importante", desc:"convidar se der",          tom:"gold" },
+  { id:3, letra:"C", nome:"Se couber",  desc:"só se sobrar lugar",       tom:"warn" }
+];
+function prioridade(id){ return PRIORIDADES.find(p => p.id === Number(id)) || null; }
+function badgePrioridadeConv(c, clicavel){
+  const p = prioridade(c.prioridade);
+  const attr = clicavel ? ` role="button" data-mudar-prio="${c.id}" title="Mudar prioridade" style="cursor:pointer"` : "";
+  return p ? `<span class="badge ${p.tom}"${attr}>${p.letra} · ${p.nome}</span>`
+           : `<span class="badge plain"${attr} style="${clicavel?"cursor:pointer;":""}color:var(--muted-2)">Definir</span>`;
+}
+function prioridadesHTML(){
+  const d = App.data, f = App.filtros.convidados;
+  const pessoas = lista => lista.reduce((a,c) => a + qtdPessoas(c), 0);
+  const ativos = d.convidados.filter(c => c.rsvp !== "recusado");
+  const cap = Number(d.casal.convidadosPrevistos) || 0;
+  let acumulado = 0;
+  const tiles = PRIORIDADES.map(p => {
+    const l = ativos.filter(c => Number(c.prioridade) === p.id);
+    acumulado += pessoas(l);
+    return { ...p, convites:l.length, pessoas:pessoas(l), acumulado };
+  });
+  const sem = ativos.filter(c => !prioridade(c.prioridade));
+  return `
+  <div class="card mb-20">
+    <div class="card-head"><h3>Prioridade dos convidados</h3>
+      <span class="t-xs t-muted">Clique num grupo para filtrar · recusados não entram na conta${cap ? ` · lugares previstos: ${cap}` : ""}</span></div>
+    <div class="card-body" style="padding-top:6px">
+      <div class="prio-grid">
+        ${tiles.map(t => {
+          const estoura = cap && t.acumulado > cap;
+          return `<button class="prio-tile ${String(f.prioridade)===String(t.id)?"active":""}" data-fprio="${t.id}">
+            <span class="between"><span class="badge ${t.tom}">${t.letra}</span><span class="t-xs t-muted">${t.convites} convite${t.convites===1?"":"s"}</span></span>
+            <span class="prio-nome">${t.nome}</span>
+            <span class="t-xs t-muted">${t.desc}</span>
+            <span class="prio-num">${t.pessoas}<small> ${t.pessoas===1?"pessoa":"pessoas"}</small></span>
+            <span class="t-xs ${estoura?"":"t-muted"}" style="${estoura?"color:var(--danger)":""}">Até ${t.letra}: <b>${t.acumulado}</b> pessoas${cap ? (estoura ? ` · passa ${t.acumulado-cap} do previsto` : ` · sobram ${cap-t.acumulado}`) : ""}</span>
+          </button>`;
+        }).join("")}
+        <button class="prio-tile ${String(f.prioridade)==="0"?"active":""}" data-fprio="0">
+          <span class="between"><span class="badge plain">—</span><span class="t-xs t-muted">${sem.length} convite${sem.length===1?"":"s"}</span></span>
+          <span class="prio-nome">Sem prioridade</span>
+          <span class="t-xs t-muted">ainda não separados</span>
+          <span class="prio-num">${pessoas(sem)}<small> ${pessoas(sem)===1?"pessoa":"pessoas"}</small></span>
+          <span class="t-xs t-muted">${sem.length ? "Clique na coluna Prioridade da tabela para definir" : "Todos já separados"}</span>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+function abrirEscolherPrioridade(alvo, ids){
+  const html = `<div style="padding:6px">
+    ${PRIORIDADES.map(p => `<button class="pop-item" data-prio-valor="${p.id}"><span class="badge ${p.tom}" style="min-width:22px;justify-content:center">${p.letra}</span><span>${p.nome} <span class="t-xs t-muted">· ${p.desc}</span></span></button>`).join("")}
+    <button class="pop-item" data-prio-valor="0"><span class="badge plain" style="min-width:22px;justify-content:center">—</span><span>Sem prioridade</span></button>
+  </div>`;
+  const pop = popover(alvo, html, 260);
+  pop.addEventListener("click", e => {
+    const b = e.target.closest("[data-prio-valor]"); if(!b) return;
+    const v = Number(b.dataset.prioValor);
+    App.data.convidados.filter(c => ids.includes(c.id)).forEach(c => c.prioridade = v);
+    fecharPop(); salvar(); render();
+    const p = prioridade(v);
+    toast(ids.length > 1 ? `${ids.length} convidados → ${p ? p.letra + " · " + p.nome : "sem prioridade"}.` : (p ? `Prioridade ${p.letra} · ${p.nome}.` : "Prioridade removida."), "ok");
   });
 }
 
@@ -504,14 +583,29 @@ POS_RENDER.convidados = function(){
     App.filtros.convidados.grupo = grupo.value;
     App.filtros.convidados.pagina = 1; render();
   });
+  const fprio = $("#filtro-prio");
+  if(fprio) fprio.addEventListener("change", () => {
+    App.filtros.convidados.prioridade = fprio.value;
+    App.filtros.convidados.pagina = 1; render();
+  });
 
   v.addEventListener("click", e => {
+    const mp = e.target.closest("[data-mudar-prio]");
+    if(mp){ e.stopPropagation(); abrirEscolherPrioridade(mp, [mp.dataset.mudarPrio]); return; }
+    const tp = e.target.closest("[data-fprio]");
+    if(tp){
+      const f = App.filtros.convidados;
+      f.prioridade = String(f.prioridade) === tp.dataset.fprio ? "todas" : tp.dataset.fprio;
+      f.pagina = 1; render(); return;
+    }
+    const pt = e.target.closest("[data-prio-todos]");
+    if(pt){ abrirEscolherPrioridade(pt, filtrarConvidados().map(c => c.id)); return; }
     const r = e.target.closest("[data-frsvp]");
     if(r){ App.filtros.convidados.rsvp = r.dataset.frsvp; App.filtros.convidados.pagina = 1; render(); return; }
     const p = e.target.closest("[data-pag]");
     if(p && !p.disabled){ App.filtros.convidados.pagina = +p.dataset.pag; render(); return; }
     if(e.target.closest("[data-limpar-filtros]")){
-      App.filtros.convidados = { busca:"", grupo:"todos", rsvp:"todos", pagina:1 }; render(); return;
+      App.filtros.convidados = { busca:"", grupo:"todos", rsvp:"todos", prioridade:"todas", pagina:1 }; render(); return;
     }
     if(e.target.closest("[data-novo-convidado]")){ abrirFormConvidado(); return; }
     if(e.target.closest("[data-exportar]")){ exportarConvidados(); return; }
@@ -544,13 +638,14 @@ POS_RENDER.convidados = function(){
 };
 
 function exportarConvidados(){
-  const linhas = [["Nome","Faixa etária","Convite de","Grupo","Telefone","RSVP","Mesa","Restrição","Observações"]];
+  const linhas = [["Nome","Faixa etária","Convite de","Grupo","Prioridade","Telefone","RSVP","Mesa","Restrição","Observações"]];
   filtrarConvidados().forEach(c => {
     const mesa = App.data.mesas.find(x => x.id === c.mesa);
     pessoasDoConvidado(c).forEach(p => {
       linhas.push([
         p.nome || "(acompanhante sem nome)", nomeFaixa(p.faixa), p.titular ? "—" : c.nome,
-        nomeGrupo(c.grupo), p.titular ? c.telefone : "", c.rsvp, mesa?mesa.nome:"",
+        nomeGrupo(c.grupo), prioridade(c.prioridade) ? prioridade(c.prioridade).letra + " · " + prioridade(c.prioridade).nome : "",
+        p.titular ? c.telefone : "", c.rsvp, mesa?mesa.nome:"",
         p.titular ? c.restricao : "", p.titular ? c.obs : ""
       ]);
     });
@@ -611,6 +706,7 @@ function abrirConvidado(id){
       </div>
       <div class="grid g-2" style="gap:12px">
         ${linhaInfo("Grupo", nomeGrupo(c.grupo))}
+        ${linhaInfo("Prioridade", prioridade(c.prioridade) ? prioridade(c.prioridade).letra + " · " + prioridade(c.prioridade).nome : "Sem prioridade")}
         ${linhaInfo("Mesa", mesa ? mesa.nome : "Sem mesa definida")}
         ${linhaInfo("Total de pessoas", String(qtdPessoas(c)))}
         ${linhaInfo("Restrição alimentar", c.restricao || "Nenhuma")}
@@ -673,6 +769,11 @@ function abrirFormConvidado(id){
       <div class="field"><label>Grupo</label>
         <select class="select" name="grupo">
           ${GRUPOS.map(g => `<option value="${g.id}" ${c&&c.grupo===g.id?"selected":""}>${esc(g.nome)}</option>`).join("")}
+        </select></div>
+      <div class="field"><label>Prioridade</label>
+        <select class="select" name="prioridade">
+          <option value="0">Sem prioridade</option>
+          ${PRIORIDADES.map(p => `<option value="${p.id}" ${c&&Number(c.prioridade)===p.id?"selected":""}>${p.letra} · ${p.nome} — ${p.desc}</option>`).join("")}
         </select></div>
       <div class="field"><label>Faixa etária</label>
         <select class="select" name="faixa">
@@ -744,7 +845,8 @@ function abrirFormConvidado(id){
           grupo:fd.get("grupo"), faixa:fd.get("faixa"),
           acompanhantes: acomp.map(a => ({ nome:String(a.nome||"").trim(), faixa:a.faixa })),
           rsvp:fd.get("rsvp"), restricao:fd.get("restricao")||"",
-          mesa:fd.get("mesa")||null, obs:fd.get("obs")||""
+          mesa:fd.get("mesa")||null, obs:fd.get("obs")||"",
+          prioridade:Number(fd.get("prioridade"))||0
         };
         if(c) Object.assign(c, dados);
         else App.data.convidados.unshift({ id:uid("c"), ...dados });

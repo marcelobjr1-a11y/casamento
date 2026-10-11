@@ -668,6 +668,17 @@ tr:hover .row-actions{ opacity:1; }
   #cortejo-grid .guest-pool .pool-item{ margin:0; flex:0 1 220px; min-width:0; }
 }
 
+/* ---------- Prioridade dos convidados ---------- */
+.prio-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.prio-tile{ display:flex; flex-direction:column; gap:3px; text-align:left; padding:13px 14px; border-radius:12px;
+  border:1px solid var(--line-2); background:var(--surface); transition:all .16s var(--ease); min-width:0; }
+.prio-tile:hover{ border-color:var(--line-strong); box-shadow:var(--sh-1); }
+.prio-tile.active{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(192,161,101,.16); }
+.prio-nome{ font-size:14px; font-weight:550; margin-top:6px; }
+.prio-num{ font-family:var(--sans); font-weight:550; font-size:22px; letter-spacing:-.02em; margin:6px 0 2px; font-variant-numeric:tabular-nums; }
+.prio-num small{ font-size:12px; color:var(--muted); font-weight:400; letter-spacing:0; }
+@media (max-width:1080px){ .prio-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
 /* ---------- Moodboard ---------- */
 .mood-grid{ columns:4; column-gap:16px; }
 .mood-card{ break-inside:avoid; margin-bottom:16px; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--line-2); background:var(--surface); box-shadow:var(--sh-1); transition:all .24s var(--ease); cursor:pointer; }

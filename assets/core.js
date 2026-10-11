@@ -10,7 +10,7 @@ const App = {
   param: null,
   carregando: false,
   filtros: {
-    convidados: { busca:"", grupo:"todos", rsvp:"todos" },
+    convidados: { busca:"", grupo:"todos", rsvp:"todos", prioridade:"todas" },
     fornecedores:{ busca:"", cat:"todas", status:"todos", vista:"grade" },
     tarefas:     { busca:"", vista:"lista", resp:"todos", cat:"todas" },
     financeiro:  { vista:"resumo" },
@@ -55,6 +55,7 @@ function migrarDados(d){
       c.acompanhantes = Array.from({ length:n }, () => ({ nome:"", faixa:"adulto" }));
     }
     delete c.tipo;
+    if(c.prioridade === undefined) c.prioridade = 0;
     if(c.papelPadrinho === undefined) c.papelPadrinho = "";
     if(c.ladoPadrinho === undefined) c.ladoPadrinho = "";
   });
