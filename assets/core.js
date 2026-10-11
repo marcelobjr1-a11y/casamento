@@ -14,6 +14,7 @@ const App = {
     fornecedores:{ busca:"", cat:"todas", status:"todos", vista:"grade" },
     tarefas:     { busca:"", vista:"lista", resp:"todos", cat:"todas" },
     financeiro:  { vista:"resumo" },
+    savethedate: { busca:"", grupo:"todos", prioridade:"todas", status:"todos" },
     padrinhos:   { vista:"cortejo" },
     documentos:  { cat:"todas", busca:"" },
     inspiracoes: { cat:"todas" },
@@ -56,6 +57,7 @@ function migrarDados(d){
     }
     delete c.tipo;
     if(c.prioridade === undefined) c.prioridade = 0;
+    if(c.stdEnviado === undefined){ c.stdEnviado = ""; c.stdVisto = false; }
     if(c.papelPadrinho === undefined) c.papelPadrinho = "";
     if(c.ladoPadrinho === undefined) c.ladoPadrinho = "";
   });
@@ -243,7 +245,7 @@ const CAT_ICO = {
 
 /* ---------------- navegação ---------------- */
 /* telas que a cerimonialista não vê (valores e configuração do site) */
-const ROTAS_SO_CASAL = ["financeiro","siteconvite"];
+const ROTAS_SO_CASAL = ["financeiro","siteconvite","savethedate"];
 function rotasVisiveis(){
   const cer = typeof modoCerimonial === "function" && modoCerimonial();
   return cer ? ROTAS.filter(r => !ROTAS_SO_CASAL.includes(r.id)) : ROTAS;
@@ -252,6 +254,7 @@ const ROTAS = [
   { id:"dashboard",    nome:"Visão geral",  icone:"home" },
   { id:"convidados",   nome:"Convidados",   icone:"users" },
   { id:"padrinhos",    nome:"Padrinhos",    icone:"ring" },
+  { id:"savethedate",  nome:"Save the date", icone:"send" },
   { id:"rsvp",         nome:"RSVP",         icone:"mail" },
   { id:"mesas",        nome:"Mesas",        icone:"table" },
   { id:"fornecedores", nome:"Fornecedores", icone:"briefcase" },

@@ -437,6 +437,7 @@ function dadosIniciais(){
     equipe: EQUIPE.filter(e => e.id === "e1" || e.id === "e2").map(e => ({ ...e, tel:"", email:"" })),
     caixaPadrinhos: { itens:[], qtdCaixas:0, status:{} },
     cortejo: { entradas:[] },
+    saveTheDate: { mensagem:"", arte:"" },
     notificacoes: []
   };
 }

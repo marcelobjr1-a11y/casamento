@@ -668,6 +668,16 @@ tr:hover .row-actions{ opacity:1; }
   #cortejo-grid .guest-pool .pool-item{ margin:0; flex:0 1 220px; min-width:0; }
 }
 
+/* ---------- Save the date ---------- */
+.std-previa{ display:flex; gap:20px; align-items:flex-start; }
+.std-arte{ width:150px; flex:0 0 150px; border-radius:14px; border:1px solid var(--line); object-fit:cover; }
+.std-arte.vazia{ height:190px; border:1.5px dashed var(--line-strong); display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; color:var(--muted); font-size:12.5px; background:var(--surface-2); }
+.std-arte.vazia:hover{ border-color:var(--gold-soft); color:var(--ink-3); }
+.std-arte.vazia svg{ width:22px; height:22px; }
+.std-balao{ background:#E7F6DC; color:#1F2A1C; border-radius:4px 14px 14px 14px; padding:12px 14px; font-size:13.5px; line-height:1.55; max-width:460px; box-shadow:var(--sh-1); }
+@media (max-width:560px){ .std-previa{ flex-direction:column; } .std-arte{ width:100%; flex:none; } .std-arte.vazia{ height:120px; } }
+
 /* ---------- Estimativa de pessoas ---------- */
 .comp-linha{ display:grid; grid-template-columns:minmax(150px,1.4fr) repeat(5,minmax(0,1fr)); gap:12px; align-items:center;
   padding:13px 4px; border-bottom:1px solid var(--line-2); }
